@@ -79,10 +79,20 @@ struct ParticleInfo {
     float mass;
 };
 
+// Variables para control de múltiples simulaciones
+int CURRENT_SIMULATION = 1;
+int TOTAL_SIMULATIONS = 50;
+bool SAVE_SIMULATION_DATA = true;
+
 // Función para guardar el estado de la simulación
 void saveSimulationState(b2WorldId worldId, const std::vector<ParticleInfo>& particles, 
                          b2BodyId groundIdleft, b2BodyId groundIdright,
                          b2BodyId leftWallId, b2BodyId rightWallId) {
+    // Si no se debe guardar, salir
+    if (!SAVE_SIMULATION_DATA) {
+        return;
+    }
+
     // Guardar información de las paredes
     b2Vec2 groundLeftPos = b2Body_GetPosition(groundIdleft);
     b2Vec2 groundRightPos = b2Body_GetPosition(groundIdright);
@@ -199,7 +209,7 @@ int main(int argc, char* argv[]) {
     CHI = 0.4286f;
     TOTAL_PARTICLES = 780;
     NUM_POLYGON_PARTICLES = 0;
-    MAX_AVALANCHES = 10;  // Valor por defecto
+    MAX_AVALANCHES = 100;  // Valor por defecto
 
     // Parsear argumentos de línea de comandos
     for (int i = 1; i < argc; i++) {
@@ -221,6 +231,26 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "--max-avalanches") == 0 && i + 1 < argc) {
             MAX_AVALANCHES = std::stoi(argv[++i]);
         }
+        else if (strcmp(argv[i], "--target-r") == 0 && i + 1 < argc) {
+            SIZE_RATIO = std::stof(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--target-chi") == 0 && i + 1 < argc) {
+            CHI = std::stof(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--current-sim") == 0 && i + 1 < argc) {
+            CURRENT_SIMULATION = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--total-sims") == 0 && i + 1 < argc) {
+            TOTAL_SIMULATIONS = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--save-sim-data") == 0 && i + 1 < argc) {
+            SAVE_SIMULATION_DATA = (std::stoi(argv[++i]) == 1);
+        }
+    }
+
+    // Solo guardar datos de simulación en las primeras 5 simulaciones
+    if (CURRENT_SIMULATION > 5) {
+        SAVE_SIMULATION_DATA = false;
     }
 
     srand(time(NULL));
@@ -234,6 +264,8 @@ int main(int argc, char* argv[]) {
     
     // Imprimir parámetros para verificación
     std::cout << "===== PARÁMETROS DE SIMULACIÓN =====\n";
+    std::cout << "Simulación actual: " << CURRENT_SIMULATION << " de " << TOTAL_SIMULATIONS << "\n";
+    std::cout << "Guardar datos de simulación: " << (SAVE_SIMULATION_DATA ? "Sí" : "No") << "\n";
     std::cout << "Radio grande: " << particleRadius << " m\n";
     std::cout << "Radio pequeño: " << particlesmallRadius << " m (Razón: " << SIZE_RATIO << ")\n";
     std::cout << "Fracción partículas grandes (χ): " << CHI << "\n";
@@ -245,8 +277,10 @@ int main(int argc, char* argv[]) {
     std::cout << "Número de avalanchas a registrar: " << MAX_AVALANCHES << "\n";
     std::cout << "====================================\n";
     
-    // Crear directorio de salida
-    std::string outputDir = "simulation_data/";
+    // Crear directorio de salida (incluye parámetros y número de simulación)
+    std::string outputDir = "simulation_data/r_" + std::to_string(SIZE_RATIO) + 
+                            "_chi_" + std::to_string(CHI) + 
+                            "_sim_" + std::to_string(CURRENT_SIMULATION) + "/";
     std::filesystem::create_directories(outputDir);
     
     // Abrir archivos de datos
@@ -254,7 +288,9 @@ int main(int argc, char* argv[]) {
     avalancheDataFile.open(outputDir + "avalanches.txt");
     flowDataFile.open(outputDir + "flow_data.csv");
     
-    if (!simulationDataFile.is_open() || !avalancheDataFile.is_open() || !flowDataFile.is_open()) {
+    if ((SAVE_SIMULATION_DATA && !simulationDataFile.is_open()) || 
+        !avalancheDataFile.is_open() || 
+        !flowDataFile.is_open()) {
         std::cerr << "Error al abrir archivos de datos!" << std::endl;
         return -1;
     }
@@ -266,7 +302,8 @@ int main(int argc, char* argv[]) {
                      << " CHI=" << CHI 
                      << " TOTAL_PARTICLES=" << TOTAL_PARTICLES 
                      << " NUM_POLYGON_PARTICLES=" << NUM_POLYGON_PARTICLES
-                     << " MAX_AVALANCHES=" << MAX_AVALANCHES << "\n";
+                     << " MAX_AVALANCHES=" << MAX_AVALANCHES 
+                     << " SIMULATION_NUM=" << CURRENT_SIMULATION << "\n";
     
     flowDataFile << "Time,MassTotal,MassFlowRate,NoPTotal,NoPFlowRate\n";
     
@@ -418,8 +455,8 @@ while (avalancheCount < MAX_AVALANCHES) {
     frameCounter++;
     simulationTime = frameCounter * TIME_STEP;
     
-    // Guardar estado actual (cada 10 frames para reducir I/O)
-    if (frameCounter % 10 == 0) {
+    // Guardar estado actual (cada 10 frames para reducir I/O) solo si se debe guardar
+    if (SAVE_SIMULATION_DATA && frameCounter % 10 == 0) {
         saveSimulationState(worldId, particles, groundIdleft, groundIdright, leftWallId, rightWallId);
     }
     
@@ -591,7 +628,9 @@ while (avalancheCount < MAX_AVALANCHES) {
     }
     
     // Cerrar archivos
-    simulationDataFile.close();
+    if (SAVE_SIMULATION_DATA) {
+        simulationDataFile.close();
+    }
     avalancheDataFile.close();
     flowDataFile.close();
 
