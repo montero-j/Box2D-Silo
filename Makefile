@@ -34,6 +34,6 @@ run-specific:
 	./scripts/run_specific_simulation.sh $(R) $(CHI)
 
 clean:
-	rm -rf $(BUILD_DIR) $(BIN_DIR) resultados
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
 .PHONY: all clean run-specific
