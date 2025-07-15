@@ -7,43 +7,116 @@ from glob import glob
 BASE_DIR = "../resultados"
 TARGET_R = "0.4"  # Radio objetivo
 CHI_VALUES = [f"{i/10:.1f}" for i in range(3, 11)]  # Desde chi_0.3 hasta chi_1.0
+PURE_CASE = True  # Flag para incluir el caso puro
 N_SIMULATIONS = 50
 
 # Diccionario para almacenar resultados
 results = {chi: [] for chi in CHI_VALUES}
+if PURE_CASE:
+    results['1.0_pure'] = []  # Caso puro chi=1.0, r=0.0
 
+def process_flow_file(path):
+    """Función mejorada para procesar archivo flow_data.csv"""
+    try:
+        # Verificar si el archivo existe
+        if not os.path.exists(path):
+            print(f"Archivo no encontrado: {path}")
+            return None
+            
+        df = pd.read_csv(path)
+        
+        # Verificar columnas requeridas
+        required_cols = {'Time', 'NoPTotal'}
+        if not required_cols.issubset(df.columns):
+            print(f"Columnas requeridas no encontradas en {path}")
+            return None
+            
+        # Calcular usando tiempo total y partículas descargadas
+        if len(df) < 2:
+            print(f"Datos insuficientes en {path}")
+            return None
+            
+        initial_particles = df['NoPTotal'].iloc[0]
+        final_particles = df['NoPTotal'].iloc[-1]
+        total_time = df['Time'].iloc[-1] - df['Time'].iloc[0]
+        
+        if total_time <= 0:
+            print(f"Tiempo total inválido en {path}")
+            return None
+            
+        total_discharged = final_particles - initial_particles
+        avg_flow = total_discharged / total_time
+        
+        print(f"Procesado: {path} - Partículas: {total_discharged}, Tiempo: {total_time:.2f}, Flujo: {avg_flow:.2f}")
+        return avg_flow
+        
+    except Exception as e:
+        print(f"Error procesando {path}: {str(e)}")
+        return None
+
+# Procesar casos normales (r=0.4)
 for chi in CHI_VALUES:
     for sim in range(1, N_SIMULATIONS + 1):
-        # Construir ruta al archivo de flujo
-        flow_path = os.path.join(BASE_DIR, f"r_{TARGET_R}", f"chi_{chi}", f"sim_{sim}", f"simulation_data", f"r_0.400000_chi_{chi}00000_sim_{sim}", "flow_data.csv")
+        flow_path = os.path.join(
+            BASE_DIR, 
+            f"r_{TARGET_R}", 
+            f"chi_{chi}", 
+            f"sim_{sim}", 
+            "simulation_data", 
+            f"r_{TARGET_R}00000_chi_{chi}00000_sim_{sim}", 
+            "flow_data.csv"
+        )
+        print(f"\nIntentando abrir: {flow_path}")
+        
+        flow_value = process_flow_file(flow_path)
+        if flow_value is not None:
+            results[chi].append(flow_value)
+        else:
+            print(f"Fallo al procesar simulación {sim} para chi={chi}")
 
-        print(f"Procesando: {flow_path}")
-        if os.path.exists(flow_path):
-            try:
-                df = pd.read_csv(flow_path)
-                
-                if {'Time', 'NoPFlowRate'}.issubset(df.columns):
-                    # Calcular flujo promedio ponderado por tiempo
-                    valid_data = df[df['NoPFlowRate'] > 0]
-                    if len(valid_data) > 1:
-                        time_intervals = np.diff(valid_data['Time'])
-                        avg_flow = np.average(valid_data['NoPFlowRate'][1:], weights=time_intervals)
-                        results[chi].append(avg_flow)
-            except Exception as e:
-                print(f"Error procesando {flow_path}: {str(e)}")
+# Procesar caso puro (r=0.0, chi=1.0)
+if PURE_CASE:
+    for sim in range(1, N_SIMULATIONS + 1):
+        pure_flow_path = os.path.join(
+            BASE_DIR,
+            "r_0.0",
+            "chi_1.0",
+            f"sim_{sim}",
+            "simulation_data",
+            f"r_0.000000_chi_1.000000_sim_{sim}",
+            "flow_data.csv"
+        )
+        print(f"\nIntentando abrir (puro): {pure_flow_path}")
+        
+        flow_value = process_flow_file(pure_flow_path)
+        if flow_value is not None:
+            results['1.0_pure'].append(flow_value)
+        else:
+            print(f"Fallo al procesar simulación pura {sim}")
 
-# Calcular estadísticas por valor de chi
-stats = pd.DataFrame({
-    'Chi': CHI_VALUES,
-    'Mean_Flow': [np.mean(results[chi]) for chi in CHI_VALUES],
-    'Std_Flow': [np.std(results[chi]) for chi in CHI_VALUES],
-    'Min_Flow': [np.min(results[chi]) for chi in CHI_VALUES],
-    'Max_Flow': [np.max(results[chi]) for chi in CHI_VALUES],
-    'N_Sims': [len(results[chi]) for chi in CHI_VALUES]
-})
+# Calcular estadísticas solo para casos con datos
+stats_data = []
+for chi, values in results.items():
+    if len(values) > 0:
+        stats_data.append({
+            'Chi': chi,
+            'R': '0.0' if chi == '1.0_pure' else TARGET_R,
+            'Median_Flow': np.median(values),
+            'Std_Flow': np.std(values),
+            'Min_Flow': np.min(values),
+            'Max_Flow': np.max(values),
+            'N_Sims': len(values),
+            'Case_Type': 'pure' if chi == '1.0_pure' else 'normal'
+        })
 
-print("\nEstadísticas de flujo por valor de chi:")
-print(stats.to_string(index=False))
-
-# Guardar resultados consolidados
-stats.to_csv(os.path.join(BASE_DIR, f"flow_stats_r_{TARGET_R}.csv"), index=False)
+if stats_data:
+    stats = pd.DataFrame(stats_data)
+    print("\nEstadísticas de flujo por valor de chi:")
+    print(stats.to_string(index=False))
+    
+    # Guardar resultados consolidados
+    output_file = os.path.join(BASE_DIR, f"flow_stats_comparison_r_{TARGET_R}.csv")
+    stats.to_csv(output_file, index=False)
+    print(f"\nResultados guardados en: {output_file}")
+else:
+    print("\nNo se encontraron datos válidos para generar estadísticas")
