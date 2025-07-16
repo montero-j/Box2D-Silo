@@ -20,6 +20,7 @@ const float BLOCKAGE_THRESHOLD = 5.0f;
 const float SHOCK_INTERVAL = 1.0f;
 const float BASE_SHOCK_MAGNITUDE = 30.0f;
 const int MAX_SHOCK_ATTEMPTS = 5;
+const float RANDOM_FORCE_MAX = 5.0e-5f; // 5x10^-5 N
 
 // Parámetros ajustables (se establecerán desde main)
 float BASE_RADIUS;
@@ -63,8 +64,10 @@ const float RECORD_INTERVAL = 0.01f;
 float accumulatedMass = 0.0f;
 int accumulatedParticles = 0;
 
+// Motores de números aleatorios
 std::mt19937 randomEngine(time(NULL));
 std::uniform_real_distribution<> angleDistribution(0.0f, 2.0f * M_PI);
+std::uniform_real_distribution<> magnitudeDistribution(0.0f, RANDOM_FORCE_MAX);
 
 // Definición de tipos de partículas
 enum ParticleShapeType {
@@ -128,6 +131,21 @@ void applyBlockageShock(std::vector<ParticleInfo>& particles, float magnitude) {
                        forceDirection.y * magnitude};
         b2Vec2 particlePos = b2Body_GetPosition(particle.bodyId);
         b2Body_ApplyForce(particle.bodyId, force, particlePos, true);
+    }
+}
+
+// Aplicar fuerzas aleatorias constantes a todas las partículas
+void applyRandomForces(std::vector<ParticleInfo>& particles) {
+    for (const auto& particle : particles) {
+        // Generar magnitud y dirección aleatorias
+        float magnitude = magnitudeDistribution(randomEngine);
+        float angle = angleDistribution(randomEngine);
+        b2Vec2 force = {
+            magnitude * cos(angle),
+            magnitude * sin(angle)
+        };
+        // Aplicar fuerza al centro de masa
+        b2Body_ApplyForceToCenter(particle.bodyId, force, true);
     }
 }
 
@@ -275,6 +293,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Total partículas: " << (numLargeParticles + numSmallParticles + NUM_POLYGON_PARTICLES) << "\n";
     std::cout << "Abertura del silo: 1.4 m (" << (1.4f / (2 * particleRadius)) << " diámetros grandes)\n";
     std::cout << "Número de avalanchas a registrar: " << MAX_AVALANCHES << "\n";
+    std::cout << "Fuerza aleatoria máxima: " << RANDOM_FORCE_MAX << " N\n";
     std::cout << "====================================\n";
     
     // Crear directorio de salida (incluye parámetros y número de simulación)
@@ -303,7 +322,8 @@ int main(int argc, char* argv[]) {
                      << " TOTAL_PARTICLES=" << TOTAL_PARTICLES 
                      << " NUM_POLYGON_PARTICLES=" << NUM_POLYGON_PARTICLES
                      << " MAX_AVALANCHES=" << MAX_AVALANCHES 
-                     << " SIMULATION_NUM=" << CURRENT_SIMULATION << "\n";
+                     << " SIMULATION_NUM=" << CURRENT_SIMULATION 
+                     << " RANDOM_FORCE_MAX=" << RANDOM_FORCE_MAX << "\n";
     
     flowDataFile << "Time,MassTotal,MassFlowRate,NoPTotal,NoPFlowRate\n";
     
@@ -447,6 +467,9 @@ int main(int argc, char* argv[]) {
     // Bucle principal de simulación
 while (avalancheCount < MAX_AVALANCHES) {
     shockAppliedThisFrame = false;  // Resetear flag de golpe
+    
+    // Aplicar fuerzas aleatorias constantes a todas las partículas
+    applyRandomForces(particles);
     
     // Paso de simulación
     b2World_Step(worldId, TIME_STEP, SUB_STEP_COUNT);
@@ -643,6 +666,7 @@ while (avalancheCount < MAX_AVALANCHES) {
     std::cout << "Tiempo total de simulación: " << totalSimulationTime << " s\n";
     std::cout << "Tiempo en avalanchas: " << totalFlowingTime << " s\n";
     std::cout << "Tiempo en atascos: " << totalBlockageTime << " s\n";
+    std::cout << "Fuerza aleatoria aplicada: " << RANDOM_FORCE_MAX << " N\n";
     std::cout << "Datos guardados en: " << outputDir << "\n";
     std::cout << "Archivo de flujo generado: flow_data.csv\n";
 
