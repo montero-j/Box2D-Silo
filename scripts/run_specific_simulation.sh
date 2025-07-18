@@ -61,7 +61,7 @@ for ((sim=1; sim<=TOTAL_SIMULATIONS; sim++)); do
             --save-sim-data $SAVE_DATA \
             --max-avalanches $MAX_AVALANCHES \
             --base-radius 0.25 \
-            --total-particles 780 \
+            --total-particles 500 \
             --polygon-particles 0 > simulation.log 2>&1
         
         echo "Simulación $sim completada"

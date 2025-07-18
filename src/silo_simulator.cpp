@@ -20,7 +20,9 @@ const float BLOCKAGE_THRESHOLD = 5.0f;
 const float SHOCK_INTERVAL = 1.0f;
 const float BASE_SHOCK_MAGNITUDE = 30.0f;
 const int MAX_SHOCK_ATTEMPTS = 5;
-const float RANDOM_FORCE_MAX = 5.0e-5f; // 5x10^-5 N
+const float RANDOM_FORCE_MAX = 5.0e-1f; // 5x10^-2 N
+const float ARCH_DETECTION_Y_THRESHOLD = 3.0f; // Altura máxima en Y para detectar partículas del arco
+const float OUTLET_X_HALF_WIDTH = 0.7f; // La mitad del ancho del orificio (1.4m / 2)
 
 // Parámetros ajustables (se establecerán desde main)
 float BASE_RADIUS;
@@ -89,8 +91,8 @@ bool SAVE_SIMULATION_DATA = true;
 
 // Función para guardar el estado de la simulación
 void saveSimulationState(b2WorldId worldId, const std::vector<ParticleInfo>& particles, 
-                         b2BodyId groundIdleft, b2BodyId groundIdright,
-                         b2BodyId leftWallId, b2BodyId rightWallId) {
+                             b2BodyId groundIdleft, b2BodyId groundIdright,
+                             b2BodyId leftWallId, b2BodyId rightWallId) {
     // Si no se debe guardar, salir
     if (!SAVE_SIMULATION_DATA) {
         return;
@@ -103,10 +105,10 @@ void saveSimulationState(b2WorldId worldId, const std::vector<ParticleInfo>& par
     b2Vec2 rightWallPos = b2Body_GetPosition(rightWallId);
     
     simulationDataFile << "Walls " 
-                      << groundLeftPos.x << " " << groundLeftPos.y << " "
-                      << groundRightPos.x << " " << groundRightPos.y << " "
-                      << leftWallPos.x << " " << leftWallPos.y << " "
-                      << rightWallPos.x << " " << rightWallPos.y << "\n";
+                     << groundLeftPos.x << " " << groundLeftPos.y << " "
+                     << groundRightPos.x << " " << groundRightPos.y << " "
+                     << leftWallPos.x << " " << leftWallPos.y << " "
+                     << rightWallPos.x << " " << rightWallPos.y << "\n";
     
     // Guardar información de cada partícula
     for (const auto& particle : particles) {
@@ -115,8 +117,8 @@ void saveSimulationState(b2WorldId worldId, const std::vector<ParticleInfo>& par
         float angle = b2Rot_GetAngle(rotation);
         
         simulationDataFile << static_cast<int>(particle.shapeType) << " "
-                          << pos.x << " " << pos.y << " "
-                          << angle << " " << particle.size << "\n";
+                         << pos.x << " " << pos.y << " "
+                         << angle << " " << particle.size << "\n";
     }
     
     simulationDataFile << "EndFrame\n";
@@ -128,7 +130,7 @@ void applyBlockageShock(std::vector<ParticleInfo>& particles, float magnitude) {
         float randomAngle = angleDistribution(randomEngine); 
         b2Vec2 forceDirection = {cos(randomAngle), sin(randomAngle)};
         b2Vec2 force = {forceDirection.x * magnitude, 
-                       forceDirection.y * magnitude};
+                        forceDirection.y * magnitude};
         b2Vec2 particlePos = b2Body_GetPosition(particle.bodyId);
         b2Body_ApplyForce(particle.bodyId, force, particlePos, true);
     }
@@ -151,8 +153,8 @@ void applyRandomForces(std::vector<ParticleInfo>& particles) {
 
 // Función para gestionar partículas que salen del silo
 std::pair<int, float> manageParticles(b2WorldId worldId, std::vector<b2BodyId>& particleIds, 
-                     float currentTime, float& lastExitTimeRef, 
-                     const std::vector<ParticleInfo>& particles) {
+                           float currentTime, float& lastExitTimeRef, 
+                           const std::vector<ParticleInfo>& particles) {
     
     const float EXIT_BELOW_Y = -1.5f;
     const float EXIT_LEFT_X = -5.5f;
@@ -189,6 +191,36 @@ std::pair<int, float> manageParticles(b2WorldId worldId, std::vector<b2BodyId>& 
     return {exitedCount, exitedMass};
 }
 
+// NUEVA FUNCIÓN: Detecta partículas que forman el arco y las reinyecta
+void detectAndReinyeectArchParticles(const std::vector<ParticleInfo>& particles) {
+    const float REINJECT_MIN_X = -3.5f;
+    const float REINJECT_MAX_X = 3.5f;
+    const float REINJECT_MIN_Y = 15.0f;
+    const float REINJECT_MAX_Y = 18.0f;
+
+    int reInjCount = 0;
+
+    for (const auto& particle : particles) {
+        b2Vec2 pos = b2Body_GetPosition(particle.bodyId);
+
+        // Definir una región de interés (ROI) cerca del orificio para detectar el arco
+        // Esto es un ejemplo, puedes ajustar las coordenadas según tu diseño de silo
+        if (pos.y < ARCH_DETECTION_Y_THRESHOLD && std::abs(pos.x) < OUTLET_X_HALF_WIDTH + particle.size * 1.5f) { // Considera el tamaño de la partícula
+            
+            // Reinyección de la partícula
+            float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
+            float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
+
+            b2Body_SetTransform(particle.bodyId, (b2Vec2){randomX, randomY}, b2Body_GetRotation(particle.bodyId));
+            b2Body_SetLinearVelocity(particle.bodyId, (b2Vec2){0.0f, 0.0f});
+            b2Body_SetAngularVelocity(particle.bodyId, 0.0f);
+            reInjCount++;
+        }
+    }
+    std::cout << "Se reinyectaron " << reInjCount << " partículas para romper el atasco.\n";
+}
+
+
 // Función para registrar datos de flujo
 void recordFlowData(float currentTime, int exitedCount, float exitedMass) {
     accumulatedMass += exitedMass;
@@ -208,10 +240,10 @@ void recordFlowData(float currentTime, int exitedCount, float exitedMass) {
         
         // Escribir datos
         flowDataFile << std::fixed << std::setprecision(2) << currentTime << ","
-                    << totalExitedMass << ","
-                    << massFlowRate << ","
-                    << totalExitedParticles << ","
-                    << particleFlowRate << "\n";
+                     << totalExitedMass << ","
+                     << massFlowRate << ","
+                     << totalExitedParticles << ","
+                     << particleFlowRate << "\n";
         
         // Resetear acumuladores
         accumulatedMass = 0.0f;
@@ -317,13 +349,13 @@ int main(int argc, char* argv[]) {
     // Escribir encabezados para archivos
     avalancheDataFile << "# AvalancheNumber ParticleCount AvalancheDuration(s) BlockageDuration(s)\n";
     avalancheDataFile << "# Parameters: BASE_RADIUS=" << BASE_RADIUS 
-                     << " SIZE_RATIO=" << SIZE_RATIO 
-                     << " CHI=" << CHI 
-                     << " TOTAL_PARTICLES=" << TOTAL_PARTICLES 
-                     << " NUM_POLYGON_PARTICLES=" << NUM_POLYGON_PARTICLES
-                     << " MAX_AVALANCHES=" << MAX_AVALANCHES 
-                     << " SIMULATION_NUM=" << CURRENT_SIMULATION 
-                     << " RANDOM_FORCE_MAX=" << RANDOM_FORCE_MAX << "\n";
+                      << " SIZE_RATIO=" << SIZE_RATIO 
+                      << " CHI=" << CHI 
+                      << " TOTAL_PARTICLES=" << TOTAL_PARTICLES 
+                      << " NUM_POLYGON_PARTICLES=" << NUM_POLYGON_PARTICLES
+                      << " MAX_AVALANCHES=" << MAX_AVALANCHES 
+                      << " SIMULATION_NUM=" << CURRENT_SIMULATION 
+                      << " RANDOM_FORCE_MAX=" << RANDOM_FORCE_MAX << "\n";
     
     flowDataFile << "Time,MassTotal,MassFlowRate,NoPTotal,NoPFlowRate\n";
     
@@ -490,7 +522,7 @@ while (avalancheCount < MAX_AVALANCHES) {
             (shockAttempts < MAX_SHOCK_ATTEMPTS)) {
             
             // Calcular magnitud del golpe (creciente)
-            float shockMagnitude = BASE_SHOCK_MAGNITUDE * (1.0f + shockAttempts * 0.5f);
+            float shockMagnitude = BASE_SHOCK_MAGNITUDE * (1.0f + shockAttempts * 0.1f);
             
             // Aplicar golpe
             applyBlockageShock(particles, shockMagnitude);
@@ -503,25 +535,16 @@ while (avalancheCount < MAX_AVALANCHES) {
                       << shockMagnitude << ") en t=" << simulationTime << "s\n";
         }
         else if (shockAttempts >= MAX_SHOCK_ATTEMPTS) {
-            // Si los golpes no funcionan, reiniciar completamente el silo
-            std::cout << "Reinicio forzado del silo en t=" << simulationTime << "s\n";
+            // Si los golpes no funcionan, detectar y reinyectar partículas del arco
+            std::cout << "Se reinyectan las partículas del arco en t=" << simulationTime << "s\n";
             
             // Guardar duración del bloqueo actual
             previousBlockageDuration = simulationTime - blockageStartTime;
             
-            // Resetear todas las partículas a posiciones iniciales
-            for (size_t i = 0; i < particleBodyIds.size(); ++i) {
-                b2BodyId particleId = particleBodyIds[i];
-                
-                float randomX = minX + (maxX - minX) * static_cast<float>(rand()) / RAND_MAX;
-                float randomY = minY + (maxY - minY) * static_cast<float>(rand()) / RAND_MAX;
-
-                b2Body_SetTransform(particleId, (b2Vec2){randomX, randomY}, b2MakeRot(0.0f));
-                b2Body_SetLinearVelocity(particleId, (b2Vec2){0.0f, 0.0f});
-                b2Body_SetAngularVelocity(particleId, 0.0f);
-            }
+            // Llama a la nueva función para detectar y reinyectar
+            detectAndReinyeectArchParticles(particles);
             
-            // Forzar inicio de avalancha
+            // Forzar inicio de avalancha (asumiendo que la reinyección romperá el atasco)
             inBlockage = false;
             inAvalanche = true;
             avalancheStartTime = simulationTime;
@@ -534,7 +557,7 @@ while (avalancheCount < MAX_AVALANCHES) {
     
     // Gestión de partículas (devuelve número de partículas y masa que salieron)
     auto [exitedCount, exitedMass] = manageParticles(worldId, particleBodyIds, 
-                                   simulationTime, lastParticleExitTime, particles);
+                                                    simulationTime, lastParticleExitTime, particles);
     
     // Registrar datos de flujo
     recordFlowData(simulationTime, exitedCount, exitedMass);
@@ -582,9 +605,9 @@ while (avalancheCount < MAX_AVALANCHES) {
             // Registrar la avalancha que acaba de terminar
             avalancheCount++;
             avalancheDataFile << avalancheCount << " " 
-                            << particlesInCurrentAvalanche << " " 
-                            << avalancheDuration << " "
-                            << previousBlockageDuration << "\n";
+                             << particlesInCurrentAvalanche << " " 
+                             << avalancheDuration << " "
+                             << previousBlockageDuration << "\n";
             
             // Actualizar tiempos acumulados
             totalFlowingTime += avalancheDuration;
@@ -618,9 +641,9 @@ while (avalancheCount < MAX_AVALANCHES) {
         float avalancheDuration = lastExitDuringAvalanche - avalancheStartTime;
         avalancheCount++;
         avalancheDataFile << avalancheCount << " " 
-                        << particlesInCurrentAvalanche << " " 
-                        << avalancheDuration << " "
-                        << previousBlockageDuration << "\n";
+                         << particlesInCurrentAvalanche << " " 
+                         << avalancheDuration << " "
+                         << previousBlockageDuration << "\n";
         
         totalFlowingTime += avalancheDuration;
     }

@@ -9,6 +9,7 @@ import argparse
 import subprocess
 from tqdm import tqdm
 import traceback
+import math
 
 class SiloRenderer:
     def __init__(self, width=1200, height=1600, large_particle_size=None, small_particle_size=None):
@@ -185,23 +186,35 @@ class SiloRenderer:
         
 
     def _draw_particle_batch(self, positions, sizes, color):
-        """Dibuja partículas con tamaño físico exacto"""
-        # Primero dibuja los bordes
-        gl.glColor4f(0, 0, 0, 0.8)  # Borde negro más marcado
+        """Dibuja partículas como círculos con tamaño físico exacto y borde."""
+        num_segments = 30
+
+        # Disminuye este valor. Un rango de 0.005 a 0.01 podría ser mejor.
+        border_thickness_world_units = 0.01  # <-- ¡PRUEBA CON ESTE VALOR!
+
         for pos, size in zip(positions, sizes):
-            radius = size * self.particle_scale
-            gl.glPointSize(radius + self.particle_border)
-            gl.glBegin(gl.GL_POINTS)
-            gl.glVertex2f(pos[0], pos[1])
+            display_radius = max(size, 0.005) # Mantén este mínimo si quieres
+
+            # --- Dibujar el círculo del borde (ligeramente más grande y negro) ---
+            gl.glColor4f(0, 0, 0, 0.8) # Color negro para el borde
+            gl.glBegin(gl.GL_TRIANGLE_FAN)
+            gl.glVertex2f(pos[0], pos[1]) # Centro
+            for i in range(num_segments + 1):
+                theta = 2.0 * math.pi * i / num_segments
+                x = pos[0] + (display_radius + border_thickness_world_units) * math.cos(theta)
+                y = pos[1] + (display_radius + border_thickness_world_units) * math.sin(theta)
+                gl.glVertex2f(x, y)
             gl.glEnd()
-        
-        # Luego dibuja el relleno
-        gl.glColor4f(*color)
-        for pos, size in zip(positions, sizes):
-            radius = max(size * self.particle_scale, self.min_particle_size)
-            gl.glPointSize(radius)
-            gl.glBegin(gl.GL_POINTS)
-            gl.glVertex2f(pos[0], pos[1])
+
+            # --- Dibujar el círculo de la partícula (color principal) ---
+            gl.glColor4f(*color) # Color de la partícula
+            gl.glBegin(gl.GL_TRIANGLE_FAN)
+            gl.glVertex2f(pos[0], pos[1]) # Centro
+            for i in range(num_segments + 1):
+                theta = 2.0 * math.pi * i / num_segments
+                x = pos[0] + display_radius * math.cos(theta)
+                y = pos[1] + display_radius * math.sin(theta)
+                gl.glVertex2f(x, y)
             gl.glEnd()
 
     def _draw_rectangle(self, x, y, width, height, color):
