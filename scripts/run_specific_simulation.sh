@@ -7,7 +7,7 @@
 BASE_DIR=$(pwd)
 RESULTADOS_DIR="${BASE_DIR}/resultados"
 MAX_AVALANCHES=100
-TOTAL_SIMULATIONS=1
+TOTAL_SIMULATIONS=50
 SAVE_DATA_FIRST=5
 MAX_PARALLEL=5  # Número máximo de simulaciones en paralelo
 
