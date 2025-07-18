@@ -22,7 +22,7 @@ const float BLOCKAGE_THRESHOLD = 5.0f;
 const float SHOCK_INTERVAL = 1.0f;
 const float BASE_SHOCK_MAGNITUDE = 30.0f;
 const int MAX_SHOCK_ATTEMPTS = 5;
-const float RANDOM_FORCE_MAX = 5.0e-1f; // 5x10^-2 N
+const float RANDOM_FORCE_MAX = 5e-1f; // 5x10^-2 N
 const float OUTLET_X_HALF_WIDTH = 0.7f; // La mitad del ancho del orificio (1.4m / 2)
 
 // Parámetros ajustables (se establecerán desde main)
