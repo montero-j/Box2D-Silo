@@ -12,16 +12,34 @@ import traceback
 import math
 
 class SiloRenderer:
-    def __init__(self, width=1200, height=1600, large_particle_size=None, small_particle_size=None):
-        """Inicializa el renderizador con configuración básica"""
+    def __init__(self, width=1200, height=1600, 
+                 base_radius=0.065, size_ratio=0.4, 
+                 total_particles=250, chi=0.2):
+        """Inicializa el renderizador con configuración básica y parámetros de simulación."""
         self.width = width
         self.height = height
-        self.particle_scale = 150  # Factor de escala para partículas
-        self.min_particle_size = 5  # Tamaño mínimo en píxeles
-        self.large_particle_size=0.25
-        self.small_particle_size=0.1
+        self.particle_scale = 150  # Factor de escala para partículas (no usado directamente en el dibujo de círculos)
+        self.min_particle_size = 5  # Tamaño mínimo en píxeles (no usado directamente en el dibujo de círculos)
+        
+        # Parámetros de partículas de la simulación C++
+        self.large_particle_radius = base_radius
+        self.small_particle_radius = base_radius * size_ratio
+        self.num_small_particles = int(chi * total_particles)
+        self.num_large_particles = total_particles - self.num_small_particles
+        
         self.debug_mode = True
-        self.particle_border = 2
+        self.particle_border = 2 # Este valor ahora es menos relevante con el nuevo método de dibujo
+
+        # Constantes de geometría del silo (de silo_simulator.cpp)
+        self.silo_height = 6.36
+        self.silo_width = 1.0
+        self.wall_thickness = 0.01
+        self.ground_level_y = 0.0
+        # CORRECCIÓN IMPORTANTE: Alinear con el valor de silo_simulator.cpp
+        self.outlet_x_half_width = 0.7  
+        
+        # Bandera para asegurar que glut.glutInit() se llama solo una vez
+        self._glut_initialized = False 
         
         # Inicialización de OpenGL
         self._init_opengl()
@@ -30,9 +48,14 @@ class SiloRenderer:
         """Configuración inicial de OpenGL y framebuffer"""
         try:
             # Inicialización GLUT
-            glut.glutInit()
+            if not self._glut_initialized: 
+                glut.glutInit()
+                self._glut_initialized = True 
+            
             glut.glutInitDisplayMode(glut.GLUT_DOUBLE | glut.GLUT_RGBA)
             glut.glutInitWindowSize(self.width, self.height)
+            if hasattr(self, 'window') and self.window:
+                glut.glutDestroyWindow(self.window)
             self.window = glut.glutCreateWindow(b"Silo Simulation")
             glut.glutHideWindow()  # Modo sin ventana
             
@@ -65,25 +88,68 @@ class SiloRenderer:
             traceback.print_exc()
             raise
 
-    def render_frame(self, walls, particles):
+    def render_frame(self, particles):
         """Renderiza un frame completo con paredes y partículas"""
         try:
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffer)
             gl.glViewport(0, 0, self.width, self.height)
             
-            # Configuración de vista
             gl.glClearColor(0.95, 0.95, 0.95, 1.0)  # Fondo gris claro
             gl.glClear(gl.GL_COLOR_BUFFER_BIT)
             
             gl.glMatrixMode(gl.GL_PROJECTION)
             gl.glLoadIdentity()
-            glu.gluOrtho2D(-6, 6, -1, 20)  # Área visible ajustada
+
+            # --- CÁLCULO DE LA PROYECCIÓN CON ASPECT RATIO CORREGIDO ---
+            # Calcular el rango de mundo deseado para el contenido principal (el silo)
+            target_world_left = -(self.silo_width / 2.0) - self.wall_thickness # Borde exterior de la pared izquierda
+            target_world_right = (self.silo_width / 2.0) + self.wall_thickness # Borde exterior de la pared derecha
+            target_world_bottom = self.ground_level_y - self.wall_thickness # Base del suelo
+            target_world_top = self.silo_height + self.wall_thickness # Parte superior de las paredes
+
+            # Añadir márgenes para asegurar que las partículas no se corten en los bordes y espacio de visualización
+            margin_particle = max(self.large_particle_radius, self.small_particle_radius)
+            extra_margin_x = 0.2
+            extra_margin_y_top = 0.5
+            extra_margin_y_bottom = 0.5
+
+            view_left = target_world_left - margin_particle - extra_margin_x
+            view_right = target_world_right + margin_particle + extra_margin_x
+            view_bottom = target_world_bottom - margin_particle - extra_margin_y_bottom
+            view_top = target_world_top + margin_particle + extra_margin_y_top
+
+            world_view_width = view_right - view_left
+            world_view_height = view_top - view_bottom
+
+            screen_aspect = float(self.width) / self.height
+            world_aspect = world_view_width / world_view_height
+
+            # Ajustar los límites de la proyección para mantener la relación de aspecto
+            if screen_aspect > world_aspect:
+                # La pantalla es relativamente más ancha, ajustar el ancho del mundo
+                adjusted_world_width = world_view_height * screen_aspect
+                x_center = (view_left + view_right) / 2.0
+                left_bound = x_center - adjusted_world_width / 2.0
+                right_bound = x_center + adjusted_world_width / 2.0
+                bottom_bound = view_bottom
+                top_bound = view_top
+            else:
+                # La pantalla es relativamente más alta, ajustar la altura del mundo
+                adjusted_world_height = world_view_width / screen_aspect
+                y_center = (view_bottom + view_top) / 2.0
+                bottom_bound = y_center - adjusted_world_height / 2.0
+                top_bound = y_center + adjusted_world_height / 2.0
+                left_bound = view_left
+                right_bound = view_right
+            
+            glu.gluOrtho2D(left_bound, right_bound, bottom_bound, top_bound)
+            # --- FIN DEL CÁLCULO DE PROYECCIÓN ---
+
             gl.glMatrixMode(gl.GL_MODELVIEW)
             gl.glLoadIdentity()
             
             # Dibujar elementos
-            if walls is not None:
-                self._draw_walls(walls)
+            self._draw_walls() 
             
             if particles is not None:
                 self._draw_particles(particles)
@@ -103,119 +169,115 @@ class SiloRenderer:
         finally:
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
 
-    def _draw_walls(self, walls):
-        """Renderiza las paredes del silo"""
+    def _draw_walls(self):
+        """Renderiza las paredes del silo de fondo plano con constantes de C++."""
         try:
-            walls_cpu = walls.get() if hasattr(walls, 'get') else walls
-            
-            # Plataforma izquierda
+            wall_color = [0.4, 0.4, 0.4, 0.9] # Color de las paredes
+            ground_color = [0.3, 0.3, 0.3, 0.9] # Color del suelo
+
+            # Pared izquierda (vertical)
+            left_wall_x = -(self.silo_width / 2.0) - (self.wall_thickness / 2.0)
             self._draw_rectangle(
-                walls_cpu[0] - 2.3, walls_cpu[1] - 0.5, 4.6, 1.0,
-                [0.3, 0.3, 0.3, 0.9]
+                left_wall_x, 
+                self.ground_level_y, 
+                self.wall_thickness, 
+                self.silo_height + self.wall_thickness, 
+                wall_color
             )
-            
-            # Plataforma derecha
+
+            # Pared derecha (vertical)
+            right_wall_x = (self.silo_width / 2.0) + (self.wall_thickness / 2.0) - self.wall_thickness
             self._draw_rectangle(
-                walls_cpu[2] - 2.3, walls_cpu[3] - 0.5, 4.6, 1.0,
-                [0.3, 0.3, 0.3, 0.9]
+                right_wall_x, 
+                self.ground_level_y, 
+                self.wall_thickness, 
+                self.silo_height + self.wall_thickness, 
+                wall_color
             )
-            
-            # Pared izquierda
+
+            # Fondo izquierdo (parte del suelo a la izquierda de la abertura)
+            ground_left_x_start = -self.silo_width / 2.0 
+            ground_left_width = (self.silo_width / 2.0) - self.outlet_x_half_width
             self._draw_rectangle(
-                walls_cpu[4] - 0.5, walls_cpu[5] - 15.0, 1.0, 30.0,
-                [0.4, 0.4, 0.4, 0.9]
+                ground_left_x_start, 
+                self.ground_level_y - self.wall_thickness, 
+                ground_left_width, 
+                self.wall_thickness, 
+                ground_color
             )
-            
-            # Pared derecha
+
+            # Fondo derecho (parte del suelo a la derecha de la abertura)
+            ground_right_x_start = self.outlet_x_half_width
+            ground_right_width = (self.silo_width / 2.0) - self.outlet_x_half_width
             self._draw_rectangle(
-                walls_cpu[6] - 0.5, walls_cpu[7] - 15.0, 1.0, 30.0,
-                [0.4, 0.4, 0.4, 0.9]
+                ground_right_x_start, 
+                self.ground_level_y - self.wall_thickness, 
+                ground_right_width, 
+                self.wall_thickness, 
+                ground_color
             )
             
         except Exception as e:
             print(f"Error dibujando paredes: {str(e)}")
             traceback.print_exc()
 
-    def _draw_particles(self, particles):
+    def _draw_particles(self, particles_data):
+        """Dibuja partículas como círculos con tamaño físico exacto y borde."""
         try:
-            types = particles['types'].get() if hasattr(particles['types'], 'get') else particles['types']
-            positions = particles['positions'].get() if hasattr(particles['positions'], 'get') else particles['positions']
-            sizes = particles['sizes'].get() if hasattr(particles['sizes'], 'get') else particles['sizes']
+            positions = particles_data['positions'].get() if hasattr(particles_data['positions'], 'get') else particles_data['positions']
             
             gl.glEnable(gl.GL_BLEND)
             gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
             gl.glEnable(gl.GL_POINT_SMOOTH)
             
-            # Filtrar partículas visibles
-            valid_mask = positions[:,1] > -0.25
+            valid_mask = positions[:,1] > -1.5 
             positions = positions[valid_mask]
-            sizes = sizes[valid_mask]
             
             if self.debug_mode:
-                unique_sizes = np.unique(sizes)
-                print(f"\nTamaños únicos: {unique_sizes}")
-                print(f"Rango de tamaños: {np.min(sizes)} a {np.max(sizes)}")
                 print(f"Total partículas visibles: {len(positions)}")
             
-            # Definir umbral para grandes/pequeñas
-            size_threshold = np.median(sizes)  # Usamos la mediana como umbral
-            
-            # Dibujar partículas grandes (azules)
-            large_mask = sizes > size_threshold
-            if np.any(large_mask):
-                self._draw_particle_batch(
-                    positions[large_mask],
-                    sizes[large_mask],
-                    [0.2, 0.4, 1.0, 0.9]  # Azul
-                )
-            
-            # Dibujar partículas pequeñas (naranjas)
-            small_mask = sizes <= size_threshold
-            if np.any(small_mask):
-                self._draw_particle_batch(
-                    positions[small_mask],
-                    sizes[small_mask],
-                    [1.0, 0.5, 0.2, 0.9]  # Naranja
-                )
+            for i, pos in enumerate(positions):
+                if i < self.num_large_particles: 
+                    current_radius = self.large_particle_radius
+                    color = [0.2, 0.4, 1.0, 0.9]  # Azul
+                else: 
+                    current_radius = self.small_particle_radius
+                    color = [1.0, 0.5, 0.2, 0.9]  # Naranja
+
+                self._draw_circle_with_border(pos, current_radius, color)
                 
         except Exception as e:
             print(f"Error dibujando partículas: {str(e)}")
             traceback.print_exc()
         finally:
             gl.glDisable(gl.GL_BLEND)
-        
+            
+    def _draw_circle_with_border(self, pos, radius, color, num_segments=30):
+        """Dibuja un círculo con un borde negro para una partícula."""
+        border_thickness_world_units = 0.005 
 
-    def _draw_particle_batch(self, positions, sizes, color):
-        """Dibuja partículas como círculos con tamaño físico exacto y borde."""
-        num_segments = 30
+        # Dibujar el círculo del borde (ligeramente más grande y negro)
+        gl.glColor4f(0, 0, 0, 0.8)  
+        gl.glBegin(gl.GL_TRIANGLE_FAN)
+        gl.glVertex2f(pos[0], pos[1])  
+        for i in range(num_segments + 1):
+            theta = 2.0 * math.pi * i / num_segments
+            x = pos[0] + (radius + border_thickness_world_units) * math.cos(theta)
+            y = pos[1] + (radius + border_thickness_world_units) * math.sin(theta)
+            gl.glVertex2f(x, y)
+        gl.glEnd()
 
-        # Disminuye este valor. Un rango de 0.005 a 0.01 podría ser mejor.
-        border_thickness_world_units = 0.01  # <-- ¡PRUEBA CON ESTE VALOR!
+        # Dibujar el círculo de la partícula (color principal)
+        gl.glColor4f(*color)  
+        gl.glBegin(gl.GL_TRIANGLE_FAN)
+        gl.glVertex2f(pos[0], pos[1])  
+        for i in range(num_segments + 1):
+            theta = 2.0 * math.pi * i / num_segments
+            x = pos[0] + radius * math.cos(theta)
+            y = pos[1] + radius * math.sin(theta) 
+            gl.glVertex2f(x, y)
+        gl.glEnd()
 
-        for pos, size in zip(positions, sizes):
-            display_radius = max(size, 0.005) # Mantén este mínimo si quieres
-
-            # --- Dibujar el círculo del borde (ligeramente más grande y negro) ---
-            gl.glColor4f(0, 0, 0, 0.8) # Color negro para el borde
-            gl.glBegin(gl.GL_TRIANGLE_FAN)
-            gl.glVertex2f(pos[0], pos[1]) # Centro
-            for i in range(num_segments + 1):
-                theta = 2.0 * math.pi * i / num_segments
-                x = pos[0] + (display_radius + border_thickness_world_units) * math.cos(theta)
-                y = pos[1] + (display_radius + border_thickness_world_units) * math.sin(theta)
-                gl.glVertex2f(x, y)
-            gl.glEnd()
-
-            # --- Dibujar el círculo de la partícula (color principal) ---
-            gl.glColor4f(*color) # Color de la partícula
-            gl.glBegin(gl.GL_TRIANGLE_FAN)
-            gl.glVertex2f(pos[0], pos[1]) # Centro
-            for i in range(num_segments + 1):
-                theta = 2.0 * math.pi * i / num_segments
-                x = pos[0] + display_radius * math.cos(theta)
-                y = pos[1] + display_radius * math.sin(theta)
-                gl.glVertex2f(x, y)
-            gl.glEnd()
 
     def _draw_rectangle(self, x, y, width, height, color):
         """Dibuja un rectángulo simple"""
@@ -243,50 +305,46 @@ class SiloRenderer:
         """Captura la imagen del framebuffer"""
         gl.glReadBuffer(gl.GL_COLOR_ATTACHMENT0)
         data = gl.glReadPixels(0, 0, self.width, self.height,
-                             gl.GL_RGBA, gl.GL_UNSIGNED_BYTE)
+                                gl.GL_RGBA, gl.GL_UNSIGNED_BYTE)
         image = Image.frombytes("RGBA", (self.width, self.height), data)
         return image.transpose(Image.FLIP_TOP_BOTTOM)
 
 def load_simulation_data(file_path):
-    """Carga los datos de simulación desde el archivo"""
+    """Carga los datos de simulación desde el archivo CSV con el nuevo formato."""
     frames = []
-    current_frame = None
     
     with open(file_path, 'r') as f:
         for line in f:
             line = line.strip()
+            if not line:
+                continue
+
+            parts = list(map(float, line.split(',')))
             
-            if line.startswith("Walls"):
-                if current_frame is not None:
-                    frames.append(current_frame)
-                parts = list(map(float, line.split()[1:]))
-                current_frame = {
-                    'walls': cp.array(parts),
-                    'particles': []
-                }
-            elif line == "EndFrame":
-                if current_frame is not None:
-                    frames.append(current_frame)
-                current_frame = None
-            elif current_frame is not None and line:
-                parts = line.split()
-                if len(parts) >= 5:
-                    current_frame['particles'].append({
-                        'type': int(parts[0]),
-                        'position': [float(parts[1]), float(parts[2])],
-                        'angle': float(parts[3]),
-                        'size': float(parts[4])
-                    })
-    
-    # Convertir partículas a arrays al final
-    for frame in frames:
-        if frame['particles']:
-            frame['particles'] = {
-                'types': cp.array([p['type'] for p in frame['particles']]),
-                'positions': cp.array([p['position'] for p in frame['particles']]),
-                'angles': cp.array([p['angle'] for p in frame['particles']]),
-                'sizes': cp.array([p['size'] for p in frame['particles']])
-            }
+            if len(parts) < 1: 
+                continue
+            
+            current_time = parts[0]
+            
+            particle_positions = []
+            for i in range(1, len(parts), 2):
+                if i + 1 < len(parts):
+                    particle_positions.append([parts[i], parts[i+1]])
+            
+            if particle_positions:
+                frames.append({
+                    'time': current_time,
+                    'particles': {
+                        'positions': cp.array(particle_positions),
+                    }
+                })
+            else:
+                frames.append({
+                    'time': current_time,
+                    'particles': {
+                        'positions': cp.array([]),
+                    }
+                })
     
     return frames
 
@@ -299,6 +357,12 @@ def main():
     parser.add_argument('--fps', type=int, default=60, help='Cuadros por segundo para el video')
     parser.add_argument('--debug', action='store_true', help='Habilitar modo debug')
     
+    # Argumentos para parámetros de simulación
+    parser.add_argument('--base-radius', type=float, default=0.065, help='Radio base de las partículas grandes')
+    parser.add_argument('--size-ratio', type=float, default=0.4, help='Relación de tamaño (radio pequeño / radio grande)')
+    parser.add_argument('--total-particles', type=int, default=250, help='Número total de partículas')
+    parser.add_argument('--chi', type=float, default=0.2, help='Fracción de partículas pequeñas (CHI)')
+    
     args = parser.parse_args()
     
     try:
@@ -307,31 +371,44 @@ def main():
         frames = load_simulation_data(args.data_path)
         print(f"Se cargaron {len(frames)} frames")
         
-        renderer = SiloRenderer()
+        # Pasar los parámetros al renderizador
+        renderer = SiloRenderer(
+            base_radius=args.base_radius,
+            size_ratio=args.size_ratio,
+            total_particles=args.total_particles,
+            chi=args.chi
+        )
         renderer.debug_mode = args.debug
         
         print("Renderizando frames...")
         selected_frames = frames[::args.frame_step]
         
         for i, frame in enumerate(tqdm(selected_frames, disable=not args.debug)):
-            if frame['particles']:
-                image = renderer.render_frame(frame['walls'], frame['particles'])
+            if frame['particles']['positions'].size > 0: 
+                image = renderer.render_frame(frame['particles']) 
                 if image is not None:
                     image.save(f"{args.output_dir}/frame_{i:05d}.png")
+            elif args.debug:
+                print(f"Frame {i}: No hay partículas para renderizar. Saltando.")
         
+        clean_command = [
+            'find', args.output_dir, '-type', 'f', '-size', '0c', '-delete'
+        ]
+        subprocess.run(clean_command, check=False) 
+
         print("Generando video...")
         subprocess.run([
             'ffmpeg', '-y', '-framerate', str(args.fps),
             '-i', f'{args.output_dir}/frame_%05d.png',
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-            '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
+            '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2', 
             '-preset', 'slow', '-crf', '18',
             args.video_output
         ], check=True)
         
         print(f"✅ Simulación renderizada correctamente en {args.video_output}")
         
-    except Exception as e:  # Asegúrate de que este bloque except existe
+    except Exception as e:
         print(f"❌ Error: {str(e)}")
         traceback.print_exc()
 
