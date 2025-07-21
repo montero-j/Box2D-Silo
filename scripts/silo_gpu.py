@@ -36,7 +36,7 @@ class SiloRenderer:
         self.wall_thickness = 0.01
         self.ground_level_y = 0.0
         # CORRECCIÓN IMPORTANTE: Alinear con el valor de silo_simulator.cpp
-        self.outlet_x_half_width = 0.7  
+        self.outlet_x_half_width = 2.3 * 0.065 # Esto es 0.1495, el valor exacto de silo_simulator.cpp
         
         # Bandera para asegurar que glut.glutInit() se llama solo una vez
         self._glut_initialized = False 
@@ -176,47 +176,47 @@ class SiloRenderer:
             ground_color = [0.3, 0.3, 0.3, 0.9] # Color del suelo
 
             # Pared izquierda (vertical)
-            left_wall_x = -(self.silo_width / 2.0) - (self.wall_thickness / 2.0)
+            # Su borde izquierdo real es -(silo_width / 2.0) - wall_thickness
             self._draw_rectangle(
-                left_wall_x, 
-                self.ground_level_y, 
-                self.wall_thickness, 
-                self.silo_height + self.wall_thickness, 
+                -(self.silo_width / 2.0) - self.wall_thickness, # X de inicio
+                self.ground_level_y, # Y de inicio (la base de la pared está en ground_level_y)
+                self.wall_thickness, # Ancho real
+                self.silo_height,    # Alto real
                 wall_color
             )
 
             # Pared derecha (vertical)
-            right_wall_x = (self.silo_width / 2.0) + (self.wall_thickness / 2.0) - self.wall_thickness
+            # Su borde izquierdo real es (silo_width / 2.0)
             self._draw_rectangle(
-                right_wall_x, 
-                self.ground_level_y, 
-                self.wall_thickness, 
-                self.silo_height + self.wall_thickness, 
+                self.silo_width / 2.0, # X de inicio
+                self.ground_level_y, # Y de inicio
+                self.wall_thickness, # Ancho real
+                self.silo_height,    # Alto real
                 wall_color
             )
 
             # Fondo izquierdo (parte del suelo a la izquierda de la abertura)
-            ground_left_x_start = -self.silo_width / 2.0 
-            ground_left_width = (self.silo_width / 2.0) - self.outlet_x_half_width
+            # Su borde izquierdo real es -self.silo_width / 2.0
+            # Su ancho real es (self.silo_width / 2.0 - self.outlet_x_half_width)
             self._draw_rectangle(
-                ground_left_x_start, 
-                self.ground_level_y - self.wall_thickness, 
-                ground_left_width, 
-                self.wall_thickness, 
+                -self.silo_width / 2.0, # X de inicio
+                self.ground_level_y - self.wall_thickness, # Y de inicio (dibuja la base hacia abajo desde ground_level_y)
+                (self.silo_width / 2.0 - self.outlet_x_half_width), # Ancho real
+                self.wall_thickness, # Alto real
                 ground_color
             )
 
             # Fondo derecho (parte del suelo a la derecha de la abertura)
-            ground_right_x_start = self.outlet_x_half_width
-            ground_right_width = (self.silo_width / 2.0) - self.outlet_x_half_width
+            # Su borde izquierdo real es self.outlet_x_half_width
+            # Su ancho real es (self.silo_width / 2.0 - self.outlet_x_half_width)
             self._draw_rectangle(
-                ground_right_x_start, 
-                self.ground_level_y - self.wall_thickness, 
-                ground_right_width, 
-                self.wall_thickness, 
+                self.outlet_x_half_width, # X de inicio
+                self.ground_level_y - self.wall_thickness, # Y de inicio
+                (self.silo_width / 2.0 - self.outlet_x_half_width), # Ancho real
+                self.wall_thickness, # Alto real
                 ground_color
             )
-            
+
         except Exception as e:
             print(f"Error dibujando paredes: {str(e)}")
             traceback.print_exc()

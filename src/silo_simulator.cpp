@@ -149,7 +149,7 @@ void applyRandomImpulses(std::vector<ParticleInfo>& particles) {
 std::tuple<int, float, int, float> manageParticles(b2WorldId worldId, std::vector<b2BodyId>& particleIds,
                                                    float currentTime, float& lastExitTimeRef,
                                                    const std::vector<ParticleInfo>& particles) {
-    
+
     // Las coordenadas de reinyección coinciden con las especificadas para el silo de fondo plano
     const float EXIT_BELOW_Y = -1.5f; // Punto de salida inferior
     const float EXIT_LEFT_X = -5.0f; // Punto de salida lateral (amplio para evitar problemas)
@@ -175,10 +175,10 @@ std::tuple<int, float, int, float> manageParticles(b2WorldId worldId, std::vecto
             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
 
             // Corregido: usar inicialización directa de b2Rot para la rotación nula
-            b2Body_SetTransform(particleId, (b2Vec2){randomX, randomY}, (b2Rot){0.0f, 1.0f}); 
+            b2Body_SetTransform(particleId, (b2Vec2){randomX, randomY}, (b2Rot){0.0f, 1.0f});
             b2Body_SetLinearVelocity(particleId, (b2Vec2){0.0f, 0.0f});
             b2Body_SetAngularVelocity(particleId, 0.0f);
-            
+
             exitedTotalCount++;
             exitedTotalMass += particles[i].mass;
             lastExitTimeRef = currentTime;
@@ -189,7 +189,7 @@ std::tuple<int, float, int, float> manageParticles(b2WorldId worldId, std::vecto
             }
         }
     }
-    
+
     return {exitedTotalCount, exitedTotalMass, exitedOriginalCount, exitedOriginalMass};
 }
 
@@ -201,20 +201,20 @@ void recordFlowData(float currentTime, int exitedTotalCount, float exitedTotalMa
     // Corregido: Usar 'exitedOriginalCount' en lugar de 'exitedOriginalParticles'
     accumulatedOriginalMass += exitedOriginalMass;
     accumulatedOriginalParticles += exitedOriginalCount;
-    
+
     if (currentTime - lastRecordedTime >= RECORD_INTERVAL) {
         float timeSinceLast = currentTime - lastRecordedTime;
-        
+
         float massFlowRate = (timeSinceLast > 0) ? accumulatedMass / timeSinceLast : 0.0f;
         float particleFlowRate = (timeSinceLast > 0) ? accumulatedParticles / timeSinceLast : 0.0f;
         float originalMassFlowRate = (timeSinceLast > 0) ? accumulatedOriginalMass / timeSinceLast : 0.0f;
         float originalParticleFlowRate = (timeSinceLast > 0) ? accumulatedOriginalParticles / timeSinceLast : 0.0f;
-        
+
         totalExitedMass += accumulatedMass;
         totalExitedParticles += accumulatedParticles;
         totalExitedOriginalMass += accumulatedOriginalMass;
         totalExitedOriginalParticles += accumulatedOriginalParticles;
-        
+
         flowDataFile << std::fixed << std::setprecision(5) << currentTime << ","
                      << totalExitedMass << ","
                      << massFlowRate << ","
@@ -224,7 +224,7 @@ void recordFlowData(float currentTime, int exitedTotalCount, float exitedTotalMa
                      << originalMassFlowRate << ","
                      << totalExitedOriginalParticles << ","
                      << originalParticleFlowRate << "\n";
-        
+
         accumulatedMass = 0.0f;
         accumulatedParticles = 0;
         accumulatedOriginalMass = 0.0f;
@@ -255,11 +255,11 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId) {
 
     if (!raycastData.hitBodies.empty()) {
         std::cout << "Raycast detectó " << raycastData.hitBodies.size() << " partículas en el arco. Reinyectando...\n";
-        
+
         for (b2BodyId bodyToReinject : raycastData.hitBodies) {
             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
-            
+
             b2Rot currentRotation = b2Body_GetRotation(bodyToReinject);
             b2Body_SetTransform(bodyToReinject, {randomX, randomY}, currentRotation);
             b2Body_SetLinearVelocity(bodyToReinject, {0.0f, 0.0f});
@@ -304,11 +304,11 @@ int main(int argc, char* argv[]) {
     }
 
     srand(time(NULL));
-    
+
     // Calcular parámetros de partículas basados en constantes
     const float particleRadius = BASE_RADIUS;
     const float particlesmallRadius = BASE_RADIUS * SIZE_RATIO;
-    
+
     const int numSmallParticles = static_cast<int>(CHI * TOTAL_PARTICLES);
     const int numLargeParticles = TOTAL_PARTICLES - numSmallParticles;
 
@@ -341,7 +341,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Magnitud máxima de impulso aleatorio: " << RANDOM_FORCE_MAGNITUDE << " Ns\n";
     std::cout << "Current Sim: " << CURRENT_SIMULATION << " / " << TOTAL_SIMULATIONS << "\n";
     std::cout << "Save Sim Data: " << (SAVE_SIMULATION_DATA ? "Yes" : "No") << "\n";
-    
+
     // Encabezado para flow_data.csv
     flowDataFile << "Time,MassTotal,MassFlowRate,NoPTotal,NoPFlowRate,MassOriginalTotal,MassOriginalFlowRate,NoPOriginalTotal,NoPOriginalFlowRate\n";
 
@@ -349,7 +349,7 @@ int main(int argc, char* argv[]) {
     b2WorldDef worldDef = b2DefaultWorldDef();
     worldDef.gravity = (b2Vec2){0.0f, -10.0f}; // Gravedad estándar
     b2WorldId worldId = b2CreateWorld(&worldDef);
-    
+
     // Definición de la forma de las paredes
     b2ShapeDef shapeDef = b2DefaultShapeDef();
     shapeDef.material.friction = 0.5f; // Fricción de las paredes
@@ -358,46 +358,71 @@ int main(int argc, char* argv[]) {
     // --- Crear estructuras del silo: Fondo Plano ---
     const float silo_height = 6.36f; // Altura del silo (como en el artículo)
     const float silo_width = 1.0f;   // Ancho del silo (como en el artículo)
-    const float wall_thickness = 0.01f; // Grosor de las paredes
+    const float wall_thickness = 0.1f; // Grosor de las paredes
 
     const float ground_level_y = 0.0f; // El fondo estará en y = 0
 
     // 1. Pared izquierda (vertical)
     b2BodyDef leftWallDef = b2DefaultBodyDef();
-    leftWallDef.position = (b2Vec2){-(silo_width / 2.0f) - (wall_thickness / 2.0f), silo_height / 2.0f};
+    // La pared debe centrarse en Y en su punto medio. Si su base es ground_level_y,
+    // su centro Y es ground_level_y + (silo_height / 2.0f).
+    // Su posición X es el borde izquierdo del silo - la mitad del grosor de la pared.
+    leftWallDef.position = (b2Vec2){-(silo_width / 2.0f) - (wall_thickness / 2.0f), ground_level_y + (silo_height / 2.0f)};
     b2BodyId leftWallId = b2CreateBody(worldId, &leftWallDef);
     b2Body_SetType(leftWallId, b2_staticBody);
-    b2Polygon leftWallShape = b2MakeBox(wall_thickness, silo_height);
+    // b2MakeBox toma MEDIO ANCHO y MEDIO ALTO.
+    // Ancho real de la pared: wall_thickness. Medio ancho: wall_thickness / 2.0f.
+    // Alto real de la pared: silo_height. Medio alto: silo_height / 2.0f.
+    b2Polygon leftWallShape = b2MakeBox(wall_thickness / 2.0f, silo_height / 2.0f);
     b2CreatePolygonShape(leftWallId, &shapeDef, &leftWallShape);
 
     // 2. Pared derecha (vertical)
     b2BodyDef rightWallDef = b2DefaultBodyDef();
-    rightWallDef.position = (b2Vec2){(silo_width / 2.0f) + (wall_thickness / 2.0f), silo_height / 2.0f};
+    // Similar a la izquierda, posición X es el borde derecho del silo + la mitad del grosor de la pared.
+    rightWallDef.position = (b2Vec2){(silo_width / 2.0f) + (wall_thickness / 2.0f), ground_level_y + (silo_height / 2.0f)};
     b2BodyId rightWallId = b2CreateBody(worldId, &rightWallDef);
     b2Body_SetType(rightWallId, b2_staticBody);
-    b2Polygon rightWallShape = b2MakeBox(wall_thickness, silo_height);
+    // b2MakeBox toma MEDIO ANCHO y MEDIO ALTO.
+    b2Polygon rightWallShape = b2MakeBox(wall_thickness / 2.0f, silo_height / 2.0f);
     b2CreatePolygonShape(rightWallId, &shapeDef, &rightWallShape);
 
     // 3. Fondo izquierdo (parte del suelo a la izquierda de la abertura)
     b2BodyDef groundLeftDef = b2DefaultBodyDef();
-    groundLeftDef.position = (b2Vec2){(-silo_width / 2.0f + OUTLET_X_HALF_WIDTH) / 2.0f, ground_level_y - (wall_thickness / 2.0f)};
+    // El centro X de esta sección es el punto medio entre -silo_width/2 y -OUTLET_X_HALF_WIDTH.
+    // Es decir: ((-silo_width / 2.0f) + (-OUTLET_X_HALF_WIDTH)) / 2.0f
+    // El centro Y de esta sección es ground_level_y - (wall_thickness / 2.0f) para que su parte superior esté en ground_level_y.
+    groundLeftDef.position = (b2Vec2){(-silo_width / 2.0f + -OUTLET_X_HALF_WIDTH) / 2.0f, ground_level_y - (wall_thickness / 2.0f)};
     b2BodyId groundLeftId = b2CreateBody(worldId, &groundLeftDef);
     b2Body_SetType(groundLeftId, b2_staticBody);
-    b2Polygon groundLeftShape = b2MakeBox((silo_width / 2.0f - OUTLET_X_HALF_WIDTH), wall_thickness);
+    // *** CORRECCIÓN CRÍTICA AQUÍ ***:
+    // El ancho REAL de esta sección es (silo_width / 2.0f - OUTLET_X_HALF_WIDTH).
+    // b2MakeBox necesita el MEDIO ANCHO, por lo que se divide entre 2.0f.
+    // El alto REAL es wall_thickness. b2MakeBox necesita el MEDIO ALTO.
+    b2Polygon groundLeftShape = b2MakeBox((silo_width / 2.0f - OUTLET_X_HALF_WIDTH) / 2.0f, wall_thickness / 2.0f);
     b2CreatePolygonShape(groundLeftId, &shapeDef, &groundLeftShape);
 
     // 4. Fondo derecho (parte del suelo a la derecha de la abertura)
     b2BodyDef groundRightDef = b2DefaultBodyDef();
+    // El centro X de esta sección es el punto medio entre OUTLET_X_HALF_WIDTH y silo_width/2.
+    // Es decir: (OUTLET_X_HALF_WIDTH + silo_width / 2.0f) / 2.0f
+    // El centro Y es ground_level_y - (wall_thickness / 2.0f).
     groundRightDef.position = (b2Vec2){(OUTLET_X_HALF_WIDTH + silo_width / 2.0f) / 2.0f, ground_level_y - (wall_thickness / 2.0f)};
     b2BodyId groundRightId = b2CreateBody(worldId, &groundRightDef);
     b2Body_SetType(groundRightId, b2_staticBody);
-    b2Polygon groundRightShape = b2MakeBox((silo_width / 2.0f - OUTLET_X_HALF_WIDTH), wall_thickness);
+    // *** CORRECCIÓN CRÍTICA AQUÍ ***:
+    // Ancho REAL: (silo_width / 2.0f - OUTLET_X_HALF_WIDTH). Medio Ancho: / 2.0f.
+    // Alto REAL: wall_thickness. Medio Alto: / 2.0f.
+    b2Polygon groundRightShape = b2MakeBox((silo_width / 2.0f - OUTLET_X_HALF_WIDTH) / 2.0f, wall_thickness / 2.0f);
     b2CreatePolygonShape(groundRightId, &shapeDef, &groundRightShape);
 
-    // Corregido: usar inicialización directa de b2Rot para la rotación nula
+    // Las llamadas a SetTransform al final del bloque de creación de la base
+    // están redundantes si la posición ya se estableció en b2BodyDef,
+    // pero si se mantienen, asegúrate de que usen las mismas posiciones calculadas.
+    // Sin embargo, recomiendo eliminarlas y confiar en la definición de b2BodyDef.
+    /*
     b2Body_SetTransform(groundLeftId, (b2Vec2){(-silo_width / 2.0f + OUTLET_X_HALF_WIDTH) / 2.0f, ground_level_y - (wall_thickness / 2.0f)}, (b2Rot){0.0f, 1.0f});
     b2Body_SetTransform(groundRightId, (b2Vec2){(OUTLET_X_HALF_WIDTH + silo_width / 2.0f) / 2.0f, ground_level_y - (wall_thickness / 2.0f)}, (b2Rot){0.0f, 1.0f});
-
+    */
 
     // Crear partículas (rangos de generación ajustados para silo de fondo plano)
     // Se generan dentro del ancho del silo, y por encima del nivel del suelo pero con margen
@@ -440,7 +465,7 @@ int main(int argc, char* argv[]) {
         smallparticleDef.type = b2_dynamicBody;
         smallparticleDef.position = (b2Vec2){randomX, randomY};
         b2BodyId smallparticleId = b2CreateBody(worldId, &smallparticleDef);
-        
+
         b2Circle circle2 = {};
         circle2.radius = particlesmallRadius;
 
@@ -459,7 +484,7 @@ int main(int argc, char* argv[]) {
     // ya que el artículo se centra en círculos y para simplificar el código.
     // Si necesitas polígonos, deberás reintroducir esa lógica y definir
     // las variables como inputPolygonVertices, polygonVertexCount, polygonCircumRadius.
-    
+
     // Bucle principal de simulación
     while (simulationTime < 150.0f) { // Se mantiene la duración de 150s
         // Aplicar impulsos aleatorios (NO fuerzas constantes)
@@ -483,14 +508,14 @@ int main(int argc, char* argv[]) {
             lastExitDuringAvalanche = simulationTime;
             lastParticleExitTime = simulationTime;
         }
-        
+
         // Gestión de partículas (Actualizar llamada con nuevos retornos)
-        auto [exitedTotalCount, exitedTotalMass, exitedOriginalCount, exitedOriginalMass] = 
+        auto [exitedTotalCount, exitedTotalMass, exitedOriginalCount, exitedOriginalMass] =
             manageParticles(worldId, particleBodyIds, simulationTime, lastParticleExitTime, particles);
-        
+
         // Registrar datos de flujo (Actualizar llamada con nuevos parámetros)
         recordFlowData(simulationTime, exitedTotalCount, exitedTotalMass, exitedOriginalCount, exitedOriginalMass);
-        
+
         // Lógica de detección de estados (se mantiene)
         float timeSinceLastExit = simulationTime - lastParticleExitTime;
 
@@ -535,7 +560,7 @@ int main(int argc, char* argv[]) {
                 blockageStartTime = simulationTime - BLOCKAGE_THRESHOLD;
             }
         }
-        
+
         // Debug: imprimir estado cada 5 segundos
         if (simulationTime - lastPrintTime >= 5.0f || simulationTime >= 150.0f - TIME_STEP) {
             std::cout << "Tiempo: " << std::fixed << std::setprecision(2) << simulationTime
@@ -570,7 +595,7 @@ int main(int argc, char* argv[]) {
                           << particlesInCurrentAvalanche << "\n";
         avalancheCount++;
     }
-    
+
     // Registrar último bloqueo si estamos en bloqueo
     if (inBlockage) {
         totalBlockageTime += (simulationTime - blockageStartTime);
@@ -587,12 +612,12 @@ int main(int argc, char* argv[]) {
     avalancheDataFile << "# Tiempo total en atascos: " << totalBlockageTime << " s\n";
     avalancheDataFile << "# Diferencia de tiempo: " << timeDiscrepancy << " s\n";
     avalancheDataFile << "# Suma de estados: " << (totalFlowingTime + totalBlockageTime) << " s\n";
-    
+
     // Registrar cualquier dato de flujo pendiente antes de cerrar
     if (accumulatedMass > 0 || accumulatedParticles > 0 || accumulatedOriginalMass > 0 || accumulatedOriginalParticles > 0) {
         recordFlowData(simulationTime, 0, 0, 0, 0); // Pasar 0 para que solo vuelque lo acumulado
     }
-    
+
     // Cerrar archivos
     if (SAVE_SIMULATION_DATA) {
         simulationDataFile.close();

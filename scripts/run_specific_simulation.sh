@@ -58,8 +58,8 @@ for ((sim=1; sim<=TOTAL_SIMULATIONS; sim++)); do
         echo "Iniciando simulación $sim de $TOTAL_SIMULATIONS (r=$TARGET_R, chi=$TARGET_CHI, total_p=$TOTAL_P)"
         
         ./silo_simulator \
-            --target-r $TARGET_R \
-            --target-chi $TARGET_CHI \
+            --size-ratio $TARGET_R \
+            --chi $TARGET_CHI \
             --current-sim $sim \
             --total-sims $TOTAL_SIMULATIONS \
             --save-sim-data $SAVE_DATA \
