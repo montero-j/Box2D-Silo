@@ -6,9 +6,10 @@ from glob import glob
 # Configuración de parámetros
 BASE_DIR = "../resultados"
 TARGET_R = "0.4"  # Radio objetivo
-CHI_VALUES = [f"{i/10:.1f}" for i in range(3, 11)]  # Desde chi_0.3 hasta chi_1.0
+CHI_VALUES = [f"{i/10:.1f}" for i in range(1, 11)]  # Desde chi_0.3 hasta chi_1.0
 PURE_CASE = True  # Flag para incluir el caso puro
 N_SIMULATIONS = 50
+TOTAL_P = 250
 
 # Diccionario para almacenar resultados
 results = {chi: [] for chi in CHI_VALUES}
@@ -61,9 +62,8 @@ for chi in CHI_VALUES:
             BASE_DIR, 
             f"r_{TARGET_R}", 
             f"chi_{chi}", 
+            f"total_p_{TOTAL_P}",
             f"sim_{sim}", 
-            "simulation_data", 
-            f"r_{TARGET_R}00000_chi_{chi}00000_sim_{sim}", 
             "flow_data.csv"
         )
         print(f"\nIntentando abrir: {flow_path}")
@@ -80,10 +80,9 @@ if PURE_CASE:
         pure_flow_path = os.path.join(
             BASE_DIR,
             "r_0.0",
-            "chi_1.0",
-            f"sim_{sim}",
-            "simulation_data",
-            f"r_0.000000_chi_1.000000_sim_{sim}",
+            "chi_0.0",
+            f"total_p_{TOTAL_P}",
+            f"sim_{sim}", 
             "flow_data.csv"
         )
         print(f"\nIntentando abrir (puro): {pure_flow_path}")
@@ -101,7 +100,7 @@ for chi, values in results.items():
         stats_data.append({
             'Chi': chi,
             'R': '0.0' if chi == '1.0_pure' else TARGET_R,
-            'Median_Flow': np.median(values),
+            'Mean_Flow': np.mean(values),
             'Std_Flow': np.std(values),
             'Min_Flow': np.min(values),
             'Max_Flow': np.max(values),

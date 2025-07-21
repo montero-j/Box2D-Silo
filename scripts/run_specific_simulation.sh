@@ -9,9 +9,9 @@ RESULTADOS_DIR="${BASE_DIR}/resultados"
 
 # Número de simulaciones a correr por cada configuración (puedes ajustarlo aquí)
 # Para correr una 'configuración específica' como pidió el usuario, se deja en 1.
-TOTAL_SIMULATIONS=1 # Cambiar a un valor mayor (ej. 50) si quieres múltiples simulaciones por cada configuración
+TOTAL_SIMULATIONS=50 # Cambiar a un valor mayor (ej. 50) si quieres múltiples simulaciones por cada configuración
 SAVE_DATA_FIRST=1   # Guardar datos de simulación para al menos la primera ejecución
-MAX_PARALLEL=5      # Número máximo de simulaciones en paralelo
+MAX_PARALLEL=10     # Número máximo de simulaciones en paralelo
 
 # Verificar argumentos
 if [ $# -ne 3 ]; then
