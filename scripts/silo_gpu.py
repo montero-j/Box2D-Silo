@@ -224,6 +224,7 @@ class SiloRenderer:
     def _draw_particles(self, particles_data):
         """Dibuja partículas como círculos con tamaño físico exacto y borde."""
         try:
+            # Asegurarse de que particles_data['positions'] sea un numpy array para el procesamiento en CPU
             positions = particles_data['positions'].get() if hasattr(particles_data['positions'], 'get') else particles_data['positions']
 
             gl.glEnable(gl.GL_BLEND)
@@ -305,7 +306,7 @@ class SiloRenderer:
         """Captura la imagen del framebuffer"""
         gl.glReadBuffer(gl.GL_COLOR_ATTACHMENT0)
         data = gl.glReadPixels(0, 0, self.width, self.height,
-                                gl.GL_RGBA, gl.GL_UNSIGNED_BYTE)
+                                 gl.GL_RGBA, gl.GL_UNSIGNED_BYTE)
         image = Image.frombytes("RGBA", (self.width, self.height), data)
         return image.transpose(Image.FLIP_TOP_BOTTOM)
 
@@ -356,6 +357,7 @@ def main():
     parser.add_argument('--frame-step', type=int, default=1, help='Saltar frames')
     parser.add_argument('--fps', type=int, default=60, help='Cuadros por segundo para el video')
     parser.add_argument('--debug', action='store_true', help='Habilitar modo debug')
+    parser.add_argument('--max-duration', type=float, default=15.0, help='Duración máxima de la simulación a renderizar en segundos') # Nuevo argumento
 
     # Argumentos para parámetros de simulación
     parser.add_argument('--base-radius', type=float, default=0.065, help='Radio base de las partículas grandes')
@@ -371,6 +373,21 @@ def main():
         frames = load_simulation_data(args.data_path)
         print(f"Se cargaron {len(frames)} frames")
 
+        # Filtrar frames para renderizar solo hasta la duración máxima
+        # Se asegura de que se considere el frame_step y la duración máxima.
+        # Primero, se aplica el frame_step para reducir el número de frames a iterar.
+        # Luego, se filtra por tiempo.
+        selected_frames_for_duration = []
+        for i in range(0, len(frames), args.frame_step):
+            frame = frames[i]
+            if frame['time'] <= args.max_duration:
+                selected_frames_for_duration.append(frame)
+            else:
+                # Una vez que superamos la duración máxima, no necesitamos verificar más frames
+                break
+
+        print(f"Se renderizarán {len(selected_frames_for_duration)} frames hasta {args.max_duration} segundos.")
+
         # Pasar los parámetros al renderizador
         renderer = SiloRenderer(
             base_radius=args.base_radius,
@@ -381,9 +398,8 @@ def main():
         renderer.debug_mode = args.debug
 
         print("Renderizando frames...")
-        selected_frames = frames[::args.frame_step]
-
-        for i, frame in enumerate(tqdm(selected_frames, disable=not args.debug)):
+        # Iterar sobre los frames ya filtrados
+        for i, frame in enumerate(tqdm(selected_frames_for_duration, disable=not args.debug)):
             if frame['particles']['positions'].size > 0:
                 image = renderer.render_frame(frame['particles'])
                 if image is not None:

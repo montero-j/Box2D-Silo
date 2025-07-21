@@ -244,7 +244,7 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId) {
 
     const int numRays = 25;
     const float maxAngle = M_PI / 3.0f; // 60 grados a cada lado (total 120 grados)
-    const float rayLength = 2.0f; // Longitud del rayo
+    const float rayLength = 0.1f; // Longitud del rayo
     const b2Vec2 origin = {0.0f, 0.0f}; // Origen de los rayos, justo en el centro de la abertura del silo
 
     for (int i = 0; i < numRays; ++i) {
