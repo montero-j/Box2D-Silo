@@ -1,6 +1,7 @@
 # Build outputs
 bin/
 build/
+box2d/
 *.o
 *.exe
 
