@@ -12,7 +12,7 @@ import traceback
 import math
 
 class SiloRenderer:
-    def __init__(self, width=1200, height=1600,
+    def __init__(self, width=1920, height=2560,
                  base_radius=0.065, size_ratio=0.4,
                  num_large_circles=0, num_small_circles=0, num_polygon_particles=0,
                  silo_height=11.70, silo_width=2.6, outlet_width=0.3056):
@@ -55,12 +55,15 @@ class SiloRenderer:
             self.texture = gl.glGenTextures(1)
             gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
             gl.glTexImage2D(
-                gl.GL_TEXTURE_2D, 0, gl.GL_RGBA,
+                gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8,  # Usar RGBA8 para mejor calidad
                 self.width, self.height, 0,
                 gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None
             )
+            # Configuración de filtrado para mejor calidad
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
 
             gl.glFramebufferTexture2D(
                 gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0,
@@ -81,6 +84,13 @@ class SiloRenderer:
         try:
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffer)
             gl.glViewport(0, 0, self.width, self.height)
+
+            # Habilitar antialiasing para mejor calidad visual
+            gl.glEnable(gl.GL_MULTISAMPLE)
+            gl.glEnable(gl.GL_LINE_SMOOTH)
+            gl.glEnable(gl.GL_BLEND)
+            gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+            gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
 
             gl.glClearColor(0.95, 0.95, 0.95, 1.0)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -251,20 +261,22 @@ class SiloRenderer:
 
         gl.glDisable(gl.GL_BLEND)
 
-    def _draw_circle_with_border(self, pos, radius, color, num_segments=30):
-        # Borde visual mucho más delgado para evitar apariencia de superposición
-        border_thickness_world_units = 0.001  # Reducido de 0.005 a 0.001 (80% menos)
-
-        gl.glColor4f(0, 0, 0, 0.8)
-        gl.glBegin(gl.GL_TRIANGLE_FAN)
-        gl.glVertex2f(pos[0], pos[1])
-        for i in range(num_segments + 1):
+    def _draw_circle_with_border(self, pos, radius, color, num_segments=50):
+        # Contorno negro más definido usando LINE_LOOP para mayor calidad
+        border_thickness_world_units = 0.0008  # Ajustado para mejor visibilidad sin aumentar tamaño
+        
+        # Dibujar contorno negro con mayor calidad
+        gl.glLineWidth(2.0)  # Línea más gruesa para mejor definición
+        gl.glColor4f(0, 0, 0, 1.0)  # Negro sólido para mejor contraste
+        gl.glBegin(gl.GL_LINE_LOOP)
+        for i in range(num_segments):
             theta = 2.0 * math.pi * i / num_segments
-            x = pos[0] + (radius + border_thickness_world_units) * math.cos(theta)
-            y = pos[1] + (radius + border_thickness_world_units) * math.sin(theta)
+            x = pos[0] + radius * math.cos(theta)
+            y = pos[1] + radius * math.sin(theta)
             gl.glVertex2f(x, y)
         gl.glEnd()
 
+        # Dibujar interior de la partícula (sin cambiar el tamaño)
         gl.glColor4f(*color)
         gl.glBegin(gl.GL_TRIANGLE_FAN)
         gl.glVertex2f(pos[0], pos[1])
@@ -275,20 +287,22 @@ class SiloRenderer:
             gl.glVertex2f(x, y)
         gl.glEnd()
 
-    def _draw_polygon_with_border(self, pos, circum_radius, num_sides, color, border_thickness_world_units=0.001):
+    def _draw_polygon_with_border(self, pos, circum_radius, num_sides, color):
         if num_sides < 3:
             return
 
-        gl.glColor4f(0, 0, 0, 0.8)
-        gl.glBegin(gl.GL_TRIANGLE_FAN)
-        gl.glVertex2f(pos[0], pos[1])
-        for i in range(num_sides + 1):
+        # Dibujar contorno negro con mayor calidad
+        gl.glLineWidth(2.0)
+        gl.glColor4f(0, 0, 0, 1.0)  # Negro sólido
+        gl.glBegin(gl.GL_LINE_LOOP)
+        for i in range(num_sides):
             angle = 2.0 * math.pi * i / num_sides
-            x = pos[0] + (circum_radius + border_thickness_world_units) * math.cos(angle)
-            y = pos[1] + (circum_radius + border_thickness_world_units) * math.sin(angle)
+            x = pos[0] + circum_radius * math.cos(angle)
+            y = pos[1] + circum_radius * math.sin(angle)
             gl.glVertex2f(x, y)
         gl.glEnd()
 
+        # Dibujar interior del polígono (sin cambiar el tamaño)
         gl.glColor4f(*color)
         gl.glBegin(gl.GL_TRIANGLE_FAN)
         gl.glVertex2f(pos[0], pos[1])
@@ -451,10 +465,33 @@ def main():
                        help='Ancho del silo (metros)')
     parser.add_argument('--outlet-width', type=float, default=0.3056,
                        help='Ancho total del outlet (metros)')
+    parser.add_argument('--width', type=int, default=1920,
+                       help='Ancho de la imagen en píxeles (resolución horizontal)')
+    parser.add_argument('--height', type=int, default=2560,
+                       help='Alto de la imagen en píxeles (resolución vertical)')
+    parser.add_argument('--hd', action='store_true',
+                       help='Usar resolución HD (1280x1024)')
+    parser.add_argument('--full-hd', action='store_true',
+                       help='Usar resolución Full HD (1920x1536)')
+    parser.add_argument('--4k', action='store_true',
+                       help='Usar resolución 4K (3840x3072)')
     parser.add_argument('--debug', action='store_true',
                        help='Habilitar modo depuración')
 
     args = parser.parse_args()
+
+    # Configurar resolución según las opciones preestablecidas
+    if args.hd:
+        args.width, args.height = 1280, 1024
+        print("🎬 Usando resolución HD: 1280x1024")
+    elif args.full_hd:
+        args.width, args.height = 1920, 1536
+        print("🎬 Usando resolución Full HD: 1920x1536")
+    elif getattr(args, '4k', False):
+        args.width, args.height = 3840, 3072
+        print("🎬 Usando resolución 4K: 3840x3072")
+    else:
+        print(f"🎬 Usando resolución personalizada: {args.width}x{args.height}")
 
     try:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -531,6 +568,8 @@ def main():
         print(f"Se cargaron {len(frames)} frames en el rango especificado")
 
         renderer = SiloRenderer(
+            width=args.width,
+            height=args.height,
             base_radius=args.base_radius,
             size_ratio=args.size_ratio,
             num_large_circles=args.num_large_circles,

@@ -27,17 +27,17 @@ float SILO_WIDTH = 2.6f;       // Ancho total del silo
 float silo_height = 3*SILO_WIDTH;//11.70f;    // Altura del silo
 
 // Constantes de simulación
-const float TIME_STEP = 0.001f;  // Timestep más pequeño para mejor estabilidad (10ms)
-const int SUB_STEP_COUNT = 40;   // Más substeps para mayor precisión
-const float BLOCKAGE_THRESHOLD = 5.0f;  // Goldberg: mantener 5.0s como en el paper
+const float TIME_STEP = 0.001f;  // Timestep
+const int SUB_STEP_COUNT = 40;   // Substeps
+const float BLOCKAGE_THRESHOLD = 5.0f;
 const float RECORD_INTERVAL = 0.01f;
-const float MIN_AVALANCHE_DURATION = 0.5f;  // Tiempo mínimo de flujo para considerar bloqueo roto
+const float MIN_AVALANCHE_DURATION = 0.5f;  // Tiempo mínimo de flujo para considerar atasco roto
 const float RAYCAST_COOLDOWN = 0.5f;        // Tiempo mínimo entre raycasts
 
 // Parámetros de reinyección configurables
-float REINJECT_HEIGHT_RATIO = 1.0f;        // Fracción de altura para reinyección (0.0-1.0)
-float REINJECT_HEIGHT_VARIATION = 0.043f;   // Variación de altura como fracción del silo (0.0-1.0)
-float REINJECT_WIDTH_RATIO = 0.31f;         // Fracción del ancho del silo para zona de reinyección (0.0-1.0)
+float REINJECT_HEIGHT_RATIO = 1.0f;        // Fracción de altura para reinyección
+float REINJECT_HEIGHT_VARIATION = 0.043f;   // Variación de altura como fracción del silo
+float REINJECT_WIDTH_RATIO = 0.31f;         // Fracción del ancho del silo para zona de reinyección
 
 // Variables derivadas
 float OUTLET_X_HALF_WIDTH;  // Se calculará como OUTLET_WIDTH / 2.0f
@@ -63,7 +63,7 @@ bool SAVE_SIMULATION_DATA = false;
 int CURRENT_SIMULATION = 1;
 int TOTAL_SIMULATIONS = 1;
 
-// Variables para avalanchas/bloqueos
+// Variables para avalanchas/atascos
 int avalancheCount = 0;
 float totalFlowingTime = 0.0f;
 float totalBlockageTime = 0.0f;
@@ -72,7 +72,7 @@ bool inBlockage = false;
 float blockageStartTime = 0.0f;
 float avalancheStartTime = 0.0f;
 int particlesInCurrentAvalanche = 0;
-int avalancheStartParticleCount = 0;  // Nueva variable para rastrear partículas al inicio de avalancha
+int avalancheStartParticleCount = 0;
 float lastExitDuringAvalanche = 0.0f;
 float lastParticleExitTime = 0.0f;
 float previousBlockageDuration = 0.0f;
@@ -92,7 +92,7 @@ std::set<b2BodyId, BodyIdComparator> particlesExitedInCurrentAvalanche;
 // Variables para seguimiento de progreso real del flujo
 int lastTotalExitedCount = 0;
 float lastProgressTime = 0.0f;
-bool waitingForFlowConfirmation = false;  // Estado de espera después de raycast
+bool waitingForFlowConfirmation = false;
 
 // Variables para registro de flujo
 float totalExitedMass = 0.0f;
@@ -105,7 +105,7 @@ int accumulatedParticles = 0;
 float accumulatedOriginalMass = 0.0f;
 int accumulatedOriginalParticles = 0;
 
-// Variables para impulsos (OBSOLETAS - Goldberg no usa perturbaciones)
+// Variables para impulsos
 // float lastShockTime = 0.0f;
 std::mt19937 randomEngine(time(NULL));  // Necesario para shuffle de partículas
 // std::uniform_real_distribution<> angleDistribution(0.0f, 2.0f * M_PI);
@@ -147,7 +147,7 @@ float RaycastCallback(b2ShapeId shapeId, b2Vec2 point, b2Vec2 normal, float frac
     return fraction;
 }
 
-// Función para aplicar impulsos aleatorios (OBSOLETA - Goldberg no usa perturbaciones)
+// Función para aplicar impulsos aleatorios
 // void applyRandomImpulses(std::vector<ParticleInfo>& particles) {
 //     if (simulationTime - lastShockTime >= SHOCK_INTERVAL) {
 //         for (const auto& particle : particles) {
@@ -185,15 +185,15 @@ void manageParticles(b2WorldId worldId, std::vector<b2BodyId>& particleIds,
         b2BodyId particleId = particleIds[i];
         b2Vec2 pos = b2Body_GetPosition(particleId);
 
-        // Solo contar como salida si pasa a través de la abertura (no por los lados)
+
         if (pos.y < EXIT_BELOW_Y && pos.x >= OUTLET_LEFT_X && pos.x <= OUTLET_RIGHT_X) {
             // VERIFICAR SI YA FUE CONTADA EN LA AVALANCHA ACTUAL
             bool alreadyCountedInAvalanche = (particlesExitedInCurrentAvalanche.find(particleId) != particlesExitedInCurrentAvalanche.end());
-            
+
             if (!alreadyCountedInAvalanche) {
                 // Marcar como contada en la avalancha actual
                 particlesExitedInCurrentAvalanche.insert(particleId);
-                
+
                 // Contar solo las que salen por la abertura Y no han sido contadas antes
                 exitedTotalCount++;
                 exitedTotalMass += particles[i].mass;
@@ -204,8 +204,8 @@ void manageParticles(b2WorldId worldId, std::vector<b2BodyId>& particleIds,
                     exitedOriginalMass += particles[i].mass;
                 }
             }
-            
-            // Reinyección (siempre hacerla independientemente de si ya fue contada)
+
+            // Reinyección
             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
 
@@ -223,8 +223,8 @@ void manageParticles(b2WorldId worldId, std::vector<b2BodyId>& particleIds,
             b2Body_SetLinearVelocity(particleId, (b2Vec2){0.0f, 0.0f});
             b2Body_SetAngularVelocity(particleId, 0.0f);
             b2Body_SetAwake(particleId, true);
-            
-            // NO incrementamos exitedTotalCount aquí - estas no son salidas válidas
+
+
         }
     }
 }
@@ -267,9 +267,8 @@ void recordFlowData(float currentTime, int exitedTotalCount, float exitedTotalMa
 // Función para detectar y reinyectar partículas en arcos
 void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
     const float REINJECT_HEIGHT = siloHeight * REINJECT_HEIGHT_RATIO;
-    
+
     // Rango de detección progresivo basado en número de intentos
-    // Empezar conservador y aumentar gradualmente si el bloqueo persiste
     float baseRange = OUTLET_WIDTH * 2.0f;  // Empezar con 2x el ancho del outlet
     float progressiveMultiplier = 1.0f + (blockageRetryCount * 0.5f);  // Aumentar 50% por intento
     float maxRange = std::min(siloHeight * 0.4f, 4.0f);  // Máximo: 40% altura o 4m
@@ -292,7 +291,7 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
 
     if (!raycastData.hitBodies.empty()) {
         int reinjected = 0;
-        // Número progresivo de partículas a reinyectar: más agresivo con más intentos
+
         const int maxReinjectPerStep = std::min(20 + (blockageRetryCount * 5), 50);
 
         for (b2BodyId body : raycastData.hitBodies) {
@@ -302,7 +301,7 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
             const float REINJECT_HALF_WIDTH = SILO_WIDTH * REINJECT_WIDTH_RATIO * 0.5f;
             const float REINJECT_MIN_X = -REINJECT_HALF_WIDTH;
             const float REINJECT_MAX_X = REINJECT_HALF_WIDTH;
-            
+
             b2Vec2 newPos = {
                 REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * (rand()/(float)RAND_MAX),
                 REINJECT_HEIGHT + (rand()/(float)RAND_MAX) * (siloHeight * REINJECT_HEIGHT_VARIATION)
@@ -311,11 +310,11 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
             b2Body_SetTransform(body, newPos, b2Body_GetRotation(body));
             b2Body_SetLinearVelocity(body, {0,0});
             b2Body_SetAngularVelocity(body, 0);
-            b2Body_SetAwake(body, true);  // ¡CRÍTICO! Despertar la partícula para evitar congelamiento
+            b2Body_SetAwake(body, true);  // Despertar la partícula para evitar congelamiento
         }
 
         std::cout << "Reinyectadas " << reinjected << " partículas del arco "
-                  << "(Intento #" << blockageRetryCount << ", Rango: " << std::fixed << std::setprecision(2) 
+                  << "(Intento #" << blockageRetryCount << ", Rango: " << std::fixed << std::setprecision(2)
                   << DETECTION_RANGE << "m)\n";
     }
 
@@ -445,7 +444,7 @@ int main(int argc, char* argv[]) {
     const float largeCircleRadius = BASE_RADIUS;
     const float smallCircleRadius = BASE_RADIUS * SIZE_RATIO;
 
-    // Crear directorio de resultados con nombre descriptivo
+    // Crear directorio de resultados
     std::ostringstream dirNameStream;
     dirNameStream << "sim_" << TOTAL_PARTICLES
                   << "_chi" << std::fixed << std::setprecision(2) << CHI
@@ -507,7 +506,7 @@ int main(int argc, char* argv[]) {
 
     // Configurar mundo Box2D
     b2WorldDef worldDef = b2DefaultWorldDef();
-    worldDef.gravity = (b2Vec2){0.0f, -9.81f};  // Goldberg: gravedad estándar
+    worldDef.gravity = (b2Vec2){0.0f, -9.81f};
     b2WorldId worldId = b2CreateWorld(&worldDef);
 
     // Definición de la forma de las paredes
@@ -515,7 +514,7 @@ int main(int argc, char* argv[]) {
     shapeDef.material.friction = 0.5f;
     shapeDef.material.restitution = 0.05f;
 
-    // --- Crear estructuras del silo ---
+    // Crear estructuras del silo
     const float wall_thickness = 0.1f;
     const float ground_level_y = 0.0f;
 
@@ -551,7 +550,7 @@ int main(int argc, char* argv[]) {
     b2Polygon groundRightShape = b2MakeBox((SILO_WIDTH / 2.0f - OUTLET_X_HALF_WIDTH) / 2.0f, wall_thickness / 2.0f);
     b2CreatePolygonShape(groundRightId, &shapeDef, &groundRightShape);
 
-    // 5. OUTLET TEMPORAL BLOQUEADO para sedimentación
+    // 5. OUTLET TEMPORAL BLOQUEADO
     b2BodyDef outletBlockDef = b2DefaultBodyDef();
     outletBlockDef.position = (b2Vec2){0.0f, ground_level_y - (wall_thickness / 2.0f)};
     b2BodyId outletBlockId = b2CreateBody(worldId, &outletBlockDef);
@@ -559,15 +558,7 @@ int main(int argc, char* argv[]) {
     b2Polygon outletBlockShape = b2MakeBox(OUTLET_X_HALF_WIDTH, wall_thickness / 2.0f);
     b2CreatePolygonShape(outletBlockId, &shapeDef, &outletBlockShape);
 
-    // 6. TAPA SUPERIOR TEMPORAL para contener partículas durante sedimentación
-    // b2BodyDef topLidDef = b2DefaultBodyDef();
-    // topLidDef.position = (b2Vec2){0.0f, silo_height + (wall_thickness / 2.0f)};
-    // b2BodyId topLidId = b2CreateBody(worldId, &topLidDef);
-    // b2Body_SetType(topLidId, b2_staticBody);
-    // b2Polygon topLidShape = b2MakeBox(SILO_WIDTH / 2.0f, wall_thickness / 2.0f);
-    // b2CreatePolygonShape(topLidId, &shapeDef, &topLidShape);
-
-    // Distribución de partículas en TODO EL SILO (como Goldberg et al. 2018)
+    // Distribución de partículas en TODO EL SILO
     // Generar partículas distribuidas uniformemente en todo el volumen del silo
     const float minX_gen = -SILO_WIDTH / 2.0f + BASE_RADIUS + 0.01f;
     const float maxX_gen = SILO_WIDTH / 2.0f - BASE_RADIUS - 0.01f;
@@ -594,44 +585,44 @@ int main(int argc, char* argv[]) {
     const int BOX2D_MAX_POLYGON_VERTICES = 8;
     const float POLYGON_SKIN_RADIUS = 0.005f;
 
-    // Crear partículas con distribución hexagonal sistemática para evitar superposiciones
+    // Crear partículas con distribución hexagonal
     std::cout << "Generando " << TOTAL_PARTICLES << " partículas con distribución hexagonal sistemática...\n";
-    
-    // Densidad adaptativa: menor densidad para sistemas grandes para reducir presión
-    float adaptiveDensity = 0.01f;//(TOTAL_PARTICLES > 1000) ? 0.7f : 1.0f;
-    
-    // DISTRIBUCIÓN HEXAGONAL SISTEMÁTICA - MUCHO MÁS EFICIENTE
+
+
+    float Density = 0.01f;
+
+    // DISTRIBUCIÓN HEXAGONAL
     const float particleSpacing = BASE_RADIUS * 3.5f;  // Distancia entre centros (apenas sin tocar)
     const float rowHeight = particleSpacing * 0.866f;  // Altura de fila hexagonal (√3/2)
-    
+
     // Calcular cuántas partículas caben por fila
     const int particlesPerRow = (int)floor((maxX_gen - minX_gen) / particleSpacing);
     const int totalRows = (int)ceil((float)TOTAL_PARTICLES / particlesPerRow);
-    
+
     std::cout << "📊 Configuración de distribución hexagonal:\n";
     std::cout << "   • Espaciado entre partículas: " << particleSpacing << " m\n";
     std::cout << "   • Altura de fila hexagonal: " << rowHeight << " m\n";
     std::cout << "   • Partículas por fila: " << particlesPerRow << "\n";
     std::cout << "   • Total de filas necesarias: " << totalRows << "\n";
-    std::cout << "   • Densidad de partículas: " << adaptiveDensity << " kg/m³\n";
+    std::cout << "   • Densidad de partículas: " << Density << " kg/m³\n";
     std::cout << "   • Altura total estimada: " << (totalRows * rowHeight) << " m\n\n";
 
     // Vector para almacenar posiciones exactas
     std::vector<std::pair<float, float>> exactPositions;
     exactPositions.reserve(TOTAL_PARTICLES);
-    
+
     // Generar posiciones con patrón hexagonal
     int particlesPlaced = 0;
     for (int row = 0; row < totalRows && particlesPlaced < TOTAL_PARTICLES; ++row) {
         float y = minY_gen + (row * rowHeight);
-        
+
         // Alternar offset para patrón hexagonal
         float xOffset = (row % 2 == 0) ? 0.0f : particleSpacing * 0.5f;
         float startX = minX_gen + BASE_RADIUS + xOffset;
-        
+
         for (int col = 0; col < particlesPerRow && particlesPlaced < TOTAL_PARTICLES; ++col) {
             float x = startX + (col * particleSpacing);
-            
+
             // Verificar que esté dentro de los límites del silo
             if (x >= minX_gen && x <= maxX_gen && y >= minY_gen && y <= maxY_gen) {
                 exactPositions.push_back({x, y});
@@ -639,42 +630,41 @@ int main(int argc, char* argv[]) {
             }
         }
     }
-    
+
     std::cout << "✅ Posiciones hexagonales generadas: " << exactPositions.size() << " posiciones\n";
-    
+
     // Si necesitamos más partículas, llenar con distribución aleatoria en la parte superior
     while (exactPositions.size() < TOTAL_PARTICLES) {
         float randomX = minX_gen + (maxX_gen - minX_gen) * static_cast<float>(rand()) / RAND_MAX;
-        float randomY = minY_gen + (totalRows * rowHeight) + 
+        float randomY = minY_gen + (totalRows * rowHeight) +
                        (maxY_gen - minY_gen - totalRows * rowHeight) * static_cast<float>(rand()) / RAND_MAX;
         exactPositions.push_back({randomX, randomY});
     }
-    
+
     std::cout << "📈 Estadísticas de generación:\n";
     std::cout << "   • Partículas con posicionamiento hexagonal: " << particlesPlaced << "\n";
     std::cout << "   • Partículas con posicionamiento aleatorio: " << (exactPositions.size() - particlesPlaced) << "\n";
     std::cout << "   • Total de posiciones generadas: " << exactPositions.size() << "\n\n";
 
     for (int i = 0; i < TOTAL_PARTICLES; ++i) {
-        // Usar posición exacta calculada (sin superposiciones)
+
         float particleX = exactPositions[i].first;
         float particleY = exactPositions[i].second;
-        
+
         b2BodyDef particleDef = b2DefaultBodyDef();
         particleDef.type = b2_dynamicBody;
         particleDef.position = (b2Vec2){particleX, particleY};
         b2BodyId particleId = b2CreateBody(worldId, &particleDef);
-        
-        // Progreso cada 200 partículas
+
         if (i > 0 && i % 200 == 0) {
-            std::cout << "🔸 Generadas " << i << "/" << TOTAL_PARTICLES 
+            std::cout << "🔸 Generadas " << i << "/" << TOTAL_PARTICLES
                       << " partículas con posicionamiento sistemático\n";
         }
 
         b2ShapeDef particleShapeDef = b2DefaultShapeDef();
-        particleShapeDef.density = adaptiveDensity;       // Usar densidad adaptativa calculada anteriormente
-        particleShapeDef.material.friction = 0.5f;      // Fricción adecuada para granulares
-        particleShapeDef.material.restitution = 0.1f;   // Ligeramente más rebote para evitar apiñamiento
+        particleShapeDef.density = Density;
+        particleShapeDef.material.friction = 0.5f;
+        particleShapeDef.material.restitution = 0.1f;
 
         ParticleShapeType currentParticleType = particleTypesToCreate[i];
         float currentParticleSize = 0.0f;
@@ -721,106 +711,34 @@ int main(int argc, char* argv[]) {
         }
         particleBodyIds.push_back(particleId);
     }
-    
-    std::cout << "✅ Generación completada: " << TOTAL_PARTICLES << " partículas con distribución hexagonal sistemática\n";
-    std::cout << "📈 Sin superposiciones iniciales garantizadas por el patrón hexagonal\n\n";
 
-    // // ===== FASE DE SACUDIDA PARA REDISTRIBUCIÓN =====
-    // std::cout << "\n🌪️  APLICANDO SACUDIDA PARA REDISTRIBUCIÓN...\n";
-    // std::cout << "Aplicando fuerzas aleatorias para eliminar superposiciones y mejorar distribución\n";
-    
-    // // Generador de números aleatorios para la sacudida
-    // std::random_device rd;
-    // std::mt19937 shakeGen(rd());
-    // std::uniform_real_distribution<float> angleDist(0.0f, 2.0f * M_PI);
-    
-    // // Intensidad de sacudida adaptativa: más fuerte para sistemas grandes
-    // float minForce = (TOTAL_PARTICLES > 1000) ? 2.0f : 1.0f;
-    // float maxForce = (TOTAL_PARTICLES > 1000) ? 12.0f : 8.0f;
-    // std::uniform_real_distribution<float> magnitudeDist(minForce, maxForce);
-    
-    // // Más sacudidas para sistemas grandes
-    // const int NUM_SHAKES = (TOTAL_PARTICLES > 1000) ? 5 : 4;
-    // const float SHAKE_INTERVAL = 0.15f;  // Intervalos más cortos pero más sacudidas
-    // const int STEPS_BETWEEN_SHAKES = (int)(SHAKE_INTERVAL / TIME_STEP);
-    
-    // for (int shake = 0; shake < NUM_SHAKES; ++shake) {
-    //     std::cout << "💥 Sacudida " << (shake + 1) << "/" << NUM_SHAKES << "...\n";
-        
-    //     // Aplicar impulsos aleatorios a todas las partículas
-    //     for (const auto& particle : particles) {
-    //         float angle = angleDist(shakeGen);
-    //         float magnitude = magnitudeDist(shakeGen);
-            
-    //         // Fuerza en dirección aleatoria
-    //         b2Vec2 impulse = {
-    //             magnitude * cos(angle),
-    //             magnitude * sin(angle)
-    //         };
-            
-    //         b2Body_ApplyLinearImpulseToCenter(particle.bodyId, impulse, true);
-            
-    //         // También aplicar un pequeño torque aleatorio para rotación
-    //         std::uniform_real_distribution<float> torqueDist(-1.0f, 1.0f);
-    //         float torque = torqueDist(shakeGen);
-    //         b2Body_ApplyTorque(particle.bodyId, torque, true);
-    //     }
-        
-    //     // Simular unos pasos para que las fuerzas tengan efecto
-    //     for (int step = 0; step < STEPS_BETWEEN_SHAKES; ++step) {
-    //         b2World_Step(worldId, TIME_STEP, SUB_STEP_COUNT);
-            
-    //         // Registrar datos durante la sacudida para visualización
-    //         if (SAVE_SIMULATION_DATA && step % 1 == 0) {  // Cada paso para capturar mejor la sacudida
-    //             float shakeTime = -0.6f + (shake * SHAKE_INTERVAL) + (step * TIME_STEP);  // Tiempo negativo específico para sacudida
-    //             simulationDataFile << std::fixed << std::setprecision(5) << shakeTime;
-    //             for (const auto& particle : particles) {
-    //                 b2Vec2 pos = b2Body_GetPosition(particle.bodyId);
-    //                 simulationDataFile << "," << pos.x << "," << pos.y << ","
-    //                                    << particle.shapeType << "," << particle.size << "," << particle.numSides;
-    //             }
-    //             simulationDataFile << ",rays_begin";
-    //             for (int i = 0; i < 120; ++i) {
-    //                 simulationDataFile << ",0,0,0,0";  // Sin raycast durante sacudida
-    //             }
-    //             simulationDataFile << ",rays_end\n";
-    //         }
-    //     }
-        
-    //     // Despertar todas las partículas para asegurar que respondan
-    //     for (const auto& particle : particles) {
-    //         b2Body_SetAwake(particle.bodyId, true);
-    //     }
-    // }
-    
-    // std::cout << "✅ SACUDIDA COMPLETADA - Partículas redistribuidas\n\n";
+    std::cout << "Generación completada: " << TOTAL_PARTICLES << " partículas con distribución hexagonal sistemática\n";
+    std::cout << "Sin superposiciones iniciales garantizadas por el patrón hexagonal\n\n";
 
-    // ===== FASE DE SEDIMENTACIÓN GRAVITACIONAL =====
-    std::cout << "\n🏗️  INICIANDO SEDIMENTACIÓN GRAVITACIONAL CON TAPA...\n";
+
     std::cout << "Dejando que " << TOTAL_PARTICLES << " partículas se sedimenten por gravedad\n";
     std::cout << "Partículas distribuidas por capas con tapa superior\n";
-    
+
     float sedimentationTime = 0.0f;
-    // Tiempo de sedimentación adaptativo: más tiempo para sistemas grandes
     const float MAX_SEDIMENTATION_TIME = (TOTAL_PARTICLES > 1000) ? 30.0f : 20.0f;
     const float STABILITY_CHECK_INTERVAL = 1.0f;  // Verificar estabilidad cada segundo
     float lastStabilityCheck = 0.0f;
-    
+
     // Variables para detectar estabilización
     float totalKineticEnergy = 0.0f;
     float previousKineticEnergy = 1000.0f;  // Valor inicial alto
     int stabilityCounter = 0;
     const int REQUIRED_STABILITY_CHECKS = 3;  // Número de verificaciones consecutivas para considerar estable
-    
+
     bool sedimentationComplete = false;
-    
+
     while (sedimentationTime < MAX_SEDIMENTATION_TIME && !sedimentationComplete) {
         b2World_Step(worldId, TIME_STEP, SUB_STEP_COUNT);
         sedimentationTime += TIME_STEP;
-        
-        // Registrar datos durante sedimentación para visualización
-        if (SAVE_SIMULATION_DATA && ((int)(sedimentationTime * 100)) % 5 == 0) {  // Cada 0.05s
-            float negativeTime = -(MAX_SEDIMENTATION_TIME - sedimentationTime);  // Tiempo negativo antes de apertura
+
+
+        if (SAVE_SIMULATION_DATA && ((int)(sedimentationTime * 100)) % 5 == 0) {
+            float negativeTime = -(MAX_SEDIMENTATION_TIME - sedimentationTime);
             simulationDataFile << std::fixed << std::setprecision(5) << negativeTime;
             for (const auto& particle : particles) {
                 b2Vec2 pos = b2Body_GetPosition(particle.bodyId);
@@ -829,63 +747,62 @@ int main(int argc, char* argv[]) {
             }
             simulationDataFile << ",rays_begin";
             for (int i = 0; i < 120; ++i) {
-                simulationDataFile << ",0,0,0,0";  // Sin raycast durante sedimentación
+                simulationDataFile << ",0,0,0,0";
             }
             simulationDataFile << ",rays_end\n";
         }
-        
+
         // Verificar estabilización periódicamente
         if (sedimentationTime - lastStabilityCheck >= STABILITY_CHECK_INTERVAL) {
             totalKineticEnergy = 0.0f;
-            
+
             // Calcular energía cinética total del sistema
             for (const auto& particle : particles) {
                 b2Vec2 velocity = b2Body_GetLinearVelocity(particle.bodyId);
                 float speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
                 totalKineticEnergy += 0.5f * particle.mass * speed * speed;
             }
-            
+
             // Verificar si el sistema se ha estabilizado
             float energyChange = abs(totalKineticEnergy - previousKineticEnergy);
             const float STABILITY_THRESHOLD = 0.1f;  // Umbral de estabilidad
-            
+
             if (energyChange < STABILITY_THRESHOLD) {
                 stabilityCounter++;
-                std::cout << "⚖️  Sistema estabilizándose... (" << stabilityCounter << "/" 
-                         << REQUIRED_STABILITY_CHECKS << ") - Energía: " 
+                std::cout << "⚖️  Sistema estabilizándose... (" << stabilityCounter << "/"
+                         << REQUIRED_STABILITY_CHECKS << ") - Energía: "
                          << std::fixed << std::setprecision(3) << totalKineticEnergy << " J\n";
             } else {
                 stabilityCounter = 0;  // Resetear contador si hay movimiento
             }
-            
+
             if (stabilityCounter >= REQUIRED_STABILITY_CHECKS) {
                 sedimentationComplete = true;
-                std::cout << "✅ SEDIMENTACIÓN COMPLETADA en " << std::fixed << std::setprecision(2) 
+                std::cout << "Estabilizacion completa en " << std::fixed << std::setprecision(2)
                          << sedimentationTime << " segundos\n";
             }
-            
+
             previousKineticEnergy = totalKineticEnergy;
             lastStabilityCheck = sedimentationTime;
         }
-        
+
         // Información de progreso cada 2 segundos
         if (((int)(sedimentationTime * 10)) % 20 == 0) {  // Cada 2.0 segundos
-            std::cout << "📊 Sedimentación: " << std::fixed << std::setprecision(1) 
+            std::cout << "Estabilizacion: " << std::fixed << std::setprecision(1)
                      << sedimentationTime << "s / " << MAX_SEDIMENTATION_TIME << "s\n";
         }
     }
-    
+
     if (!sedimentationComplete) {
-        std::cout << "⏰ Sedimentación finalizada por timeout después de " 
+        std::cout << "Estabilizacion finalizada por timeout después de "
                  << MAX_SEDIMENTATION_TIME << " segundos\n";
     }
-    
+
     // ===== ABRIR EL SILO =====
-    std::cout << "\n🚪 ABRIENDO SILO - Eliminando bloqueo temporal y tapa...\n";
+    std::cout << "\nABRIENDO SILO - Eliminando bloqueo temporal\n";
     b2DestroyBody(outletBlockId);  // Eliminar la pared que bloquea el outlet
-    // b2DestroyBody(topLidId);       // Eliminar la tapa superior
-    std::cout << "✅ SILO ABIERTO - Iniciando simulación de flujo granular\n\n";
-    
+    std::cout << "SILO ABIERTO - Iniciando simulación de flujo granular\n\n";
+
     // Resetear tiempo de simulación para el flujo granular
     simulationTime = 0.0f;
 
@@ -941,7 +858,7 @@ int main(int argc, char* argv[]) {
                 inBlockage = true;
                 blockageStartTime = simulationTime;
                 waitingForFlowConfirmation = false;  // Reset estado de espera
-                
+
                 // LIMPIAR EL SET DE PARTÍCULAS CONTADAS AL FINAL DE LA AVALANCHA
                 particlesExitedInCurrentAvalanche.clear();
             } else if (hasFlowProgress) {
@@ -986,7 +903,7 @@ int main(int argc, char* argv[]) {
                 avalancheStartParticleCount = totalExitedParticles;  // Guardar punto de inicio
                 lastExitDuringAvalanche = simulationTime;
                 blockageRetryCount = 0;  // Reset contador cuando se inicia avalancha normal
-                
+
                 // LIMPIAR SET AL INICIO DE NUEVA AVALANCHA
                 particlesExitedInCurrentAvalanche.clear();
             }
@@ -999,7 +916,7 @@ int main(int argc, char* argv[]) {
                 avalancheStartParticleCount = totalExitedParticles;  // Guardar punto de inicio
                 lastExitDuringAvalanche = simulationTime;
                 blockageRetryCount = 0;  // Reset contador cuando se inicia avalancha desde estado inicial
-                
+
                 // LIMPIAR SET AL INICIO DE NUEVA AVALANCHA
                 particlesExitedInCurrentAvalanche.clear();
             } else if (hasFlowProgress && waitingForFlowConfirmation) {
@@ -1011,7 +928,7 @@ int main(int argc, char* argv[]) {
                     avalancheStartParticleCount = totalExitedParticles;  // Guardar punto de inicio
                     lastExitDuringAvalanche = simulationTime;
                     blockageRetryCount = 0;  // Reset contador solo cuando hay flujo confirmado
-                    
+
                     // LIMPIAR SET AL INICIO DE NUEVA AVALANCHA
                     particlesExitedInCurrentAvalanche.clear();
                 }
