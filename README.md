@@ -1,10 +1,10 @@
 # Box2D Silo Polygons - Simulador de Avalanchas Granulares
 
-## 📖 Descripción
+## Descripción
 
 Este proyecto es un simulador de silos granulares construido con Box2D que estudia el comportamiento de avalanchas de partículas con diferentes formas geométricas. El simulador permite analizar cómo la forma de las partículas (círculos, triángulos, cuadrados, pentágonos, hexágonos) afecta el flujo y la formación de avalanchas en un silo.
 
-## 🎯 Características Principales
+## Características Principales
 
 - **Simulación física realista** usando Box2D
 - **Múltiples formas geométricas**: círculos, triángulos, cuadrados, pentágonos, hexágonos
@@ -14,7 +14,7 @@ Este proyecto es un simulador de silos granulares construido con Box2D que estud
 - **Renderización visual** de simulaciones
 - **Análisis estadístico** completo de resultados
 
-## 🏗️ Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 ├── 📁 src/                     # Código fuente C++
@@ -47,7 +47,7 @@ Este proyecto es un simulador de silos granulares construido con Box2D que estud
 └── 📄 CONTRIBUTING.md          # Guía de contribución
 ```
 
-## 🚀 Instalación y Compilación
+## Instalación y Compilación
 
 ### ⚡ Inicio Rápido
 
@@ -97,7 +97,7 @@ make
 ls bin/silo_simulator  # Debe existir
 ```
 
-## 📊 Uso del Simulador
+##  Uso del Simulador
 
 ### 1. Simulación Individual
 
@@ -110,7 +110,7 @@ ls bin/silo_simulator  # Debe existir
 
 # Parámetros principales:
 #   --base-radius: Radio base de partículas (m)
-#   --outlet-width: Ancho de salida del silo (m)  
+#   --outlet-width: Ancho de salida del silo (m)
 #   --particles: Número total de partículas
 #   --time: Tiempo de simulación (s)
 #   --polygon: 1 para polígonos, 0 para círculos
@@ -146,7 +146,7 @@ python3 scripts/run_shape_study.py squares --resume
 
 # Esto ejecutará automáticamente:
 # - circles: 500 avalanchas
-# - triangles: 500 avalanchas  
+# - triangles: 500 avalanchas
 # - squares: 500 avalanchas
 # - pentagons: 500 avalanchas
 # - hexagons: 500 avalanchas
@@ -181,14 +181,14 @@ python3 run_goldberg_study.py
 # - Expectativa: ~50 partículas/avalancha
 ```
 
-## 📈 Análisis de Resultados
+## Análisis de Resultados
 
-### 🗂️ Gestión de Datos de Simulaciones
+### Gestión de Datos de Simulaciones
 
 El simulador genera datos en diferentes ubicaciones según cómo se ejecute:
 
 ```
-📂 UBICACIONES DE DATOS:
+UBICACIONES DE DATOS:
 
 1. Simulación directa:
    ./bin/silo_simulator → ./simulations/sim_XXXX/
@@ -204,7 +204,7 @@ El simulador genera datos en diferentes ubicaciones según cómo se ejecute:
    scripts/run_shape_study.py → data/simulations/sim_XXXX/
 ```
 
-#### 🧹 Limpieza de Datos
+#### Limpieza de Datos
 
 ```bash
 # Limpiar TODOS los datos de simulaciones
@@ -229,19 +229,19 @@ Cada estudio genera:
 
 ```
 data/shape_study_results_[forma]/
-├── 📊 consolidated_avalanche_data.csv    # Todas las avalanchas
-├── 📈 consolidated_flow_data.csv         # Datos de flujo temporal
-├── 📋 progress_log.csv                   # Progreso del estudio
-├── 🎬 render_simulation_data.json        # Datos para renderizado
-├── 📝 study_log.txt                      # Log detallado
-└── 📁 sim_XXXX/                          # Datos individuales por simulación
+├── consolidated_avalanche_data.csv    # Todas las avalanchas
+├── consolidated_flow_data.csv         # Datos de flujo temporal
+├── progress_log.csv                   # Progreso del estudio
+├── render_simulation_data.json        # Datos para renderizado
+├── study_log.txt                      # Log detallado
+└── sim_XXXX/                          # Datos individuales por simulación
     ├── avalanche_data.csv             # Avalanchas de esta simulación
     ├── flow_data.csv                  # Flujo temporal
     ├── simulation_data.csv            # Posiciones de partículas
     └── simulation_log.txt             # Log de simulación
 ```
 
-#### 📋 Descripción de Archivos de Datos
+#### Descripción de Archivos de Datos
 
 | Archivo | Contenido | Uso |
 |---------|-----------|-----|
@@ -251,13 +251,6 @@ data/shape_study_results_[forma]/
 | `progress_log.csv` | Progreso de estudios largos | Monitoreo en tiempo real |
 | `consolidated_*.csv` | Datos combinados de múltiples sims | Análisis estadístico |
 
-#### 💾 Tamaños Típicos de Datos
-
-| Simulación | Partículas | Tiempo | Tamaño Aprox |
-|------------|------------|--------|-------------|
-| Ejemplo rápido | 500 | 30s | ~1-5 MB |
-| Simulación estándar | 2000 | 150s | ~10-50 MB |
-| Estudio completo | 2000 x 100 sims | - | ~1-5 GB |
 
 ### Análisis Estadístico
 
@@ -283,7 +276,7 @@ python3 analysis/render_simulation.py \
     --total-particles 2000
 ```
 
-## 🔬 Estudios de Formas Geométricas
+## Estudios de Formas Geométricas
 
 ### Parámetros Estándar
 
@@ -321,7 +314,7 @@ python3 analysis/render_simulation.py \
    - Comportamiento más cercano a círculos
    - Flujo relativamente suave
 
-## 📊 Métricas y Análisis
+## Métricas y Análisis
 
 ### Detección de Avalanchas
 
@@ -333,7 +326,7 @@ El simulador detecta avalanchas automáticamente basándose en:
 ### Métricas Principales
 
 - **Tamaño de avalancha**: Número de partículas por evento
-- **Frecuencia**: Avalanchas por unidad de tiempo  
+- **Frecuencia**: Avalanchas por unidad de tiempo
 - **Tiempo entre avalanchas**: Intervalo temporal
 - **Tasa de flujo**: Partículas por segundo
 - **Tiempo de bloqueo**: Duración de estancamiento
@@ -346,7 +339,7 @@ El simulador detecta avalanchas automáticamente basándose en:
 - Comparación entre formas geométricas
 - Validación con literatura (Goldberg et al.)
 
-## 🔧 Configuración Avanzada
+## Configuración Avanzada
 
 ### Parámetros del Simulador
 
@@ -376,7 +369,7 @@ float blocking_threshold = 5.0f;       // segundos
 float output_interval = 1.0f;          // intervalo guardado
 ```
 
-## 🐛 Solución de Problemas
+## Solución de Problemas
 
 ### Problemas Comunes
 
@@ -421,7 +414,7 @@ make test
 make clean-data
 ```
 
-## 🛠️ Comandos del Makefile
+## Comandos del Makefile
 
 ```bash
 # Compilación
@@ -450,7 +443,7 @@ make study-squares     # Estudio de cuadrados
 make study-pentagons   # Estudio de pentágonos
 ```
 
-### 🔍 Localización de Datos
+### Localización de Datos
 
 ```bash
 # Ver dónde están todos los datos de simulación
@@ -468,7 +461,7 @@ ls -la data/shape_study_results_circles/
 
 ## � Buenas Prácticas para Gestión de Datos
 
-### 📋 Recomendaciones de Uso
+### Recomendaciones de Uso
 
 #### Para Trabajo de Investigación:
 ```bash
@@ -503,39 +496,3 @@ git add README.md Makefile LICENSE .gitignore
 # NO versionar datos (ya están en .gitignore)
 # git add data/simulations/  # ❌ NO hacer esto
 ```
-
-### ⚠️ Advertencias Importantes
-
-- **Datos grandes**: Los estudios completos pueden generar varios GB
-- **Respaldo**: Los datos NO están versionados en Git - hacer backups manuales
-- **Limpieza**: `make clean-data` elimina TODO - usar con cuidado
-- **Espacio**: Monitorear espacio en disco para estudios largos
-
-## �📚 Referencias y Literatura
-
-- **Goldberg et al. (2018)**: "Avalanche dynamics in a granular silo"
-- **Box2D Documentation**: https://box2d.org/documentation/
-- **Granular Flow Theory**: Jaeger & Nagel (1992)
-
-## 🤝 Contribuciones
-
-Para contribuir al proyecto:
-
-1. Fork el repositorio
-2. Crear rama feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Crear Pull Request
-
-## 📄 Licencia
-
-Este proyecto utiliza la licencia de Box2D. Ver `box2d/LICENSE` para detalles.
-
-## 👥 Autores
-
-- **Montero-J**: Implementación principal
-- **GitHub Copilot**: Scripts de automatización y análisis
-
----
-
-**¿Necesitas ayuda?** Abre un issue en el repositorio o revisa la documentación en `docs/`.

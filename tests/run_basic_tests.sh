@@ -17,7 +17,7 @@ TESTS_FAILED=0
 report_test() {
     local test_name="$1"
     local result="$2"
-    
+
     if [ "$result" -eq 0 ]; then
         echo -e "  ✅ ${GREEN}PASS${NC}: $test_name"
         TESTS_PASSED=$((TESTS_PASSED + 1))
@@ -83,13 +83,13 @@ latest_sim=$(ls -dt ../data/simulations/sim_* 2>/dev/null | head -1)
 
 if [ -n "$latest_sim" ]; then
     report_test "Directorio de simulación creado" 0
-    
+
     if [ -f "$latest_sim/flow_data.csv" ]; then
         report_test "Archivo flow_data.csv" 0
     else
         report_test "Archivo flow_data.csv" 1
     fi
-    
+
     if [ -f "$latest_sim/simulation_data.csv" ]; then
         report_test "Archivo simulation_data.csv" 0
     else
@@ -138,7 +138,7 @@ try:
 except:
     sys.exit(1)
 " 2>/dev/null
-    
+
     if [ $? -eq 0 ]; then
         report_test "Lectura de datos CSV" 0
     else

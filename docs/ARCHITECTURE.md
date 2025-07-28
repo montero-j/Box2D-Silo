@@ -21,12 +21,12 @@ Box2D Silo Polygons está diseñado como un simulador modular de silos granulare
 ### Core del Simulador
 - **`src/`**: Código fuente C++ del simulador principal
   - `silo_hexagono.cpp`: Simulador principal con física de partículas
-  
-### Scripts de Automatización  
+
+### Scripts de Automatización
 - **`scripts/`**: Scripts Python para estudios automatizados
   - `run_shape_study.py`: Estudios por forma geométrica específica
   - `run_all_shapes_study.sh`: Ejecutor de estudios completos
-  
+
 ### Análisis de Datos
 - **`analysis/`**: Herramientas de análisis y visualización
   - `avalanche_distribution.py`: Análisis estadístico de avalanchas
@@ -79,7 +79,7 @@ Input Parameters → C++ Simulator → Raw Data → Python Analysis → Results
 ```cpp
 float density = 0.01f;        // kg/m²
 float friction = 0.5f;        // Coef. fricción
-float restitution = 0.05f;    // Coef. restitución  
+float restitution = 0.05f;    // Coef. restitución
 float gravity = 9.81f;        // m/s²
 ```
 
