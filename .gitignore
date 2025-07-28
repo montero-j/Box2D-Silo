@@ -1,4 +1,99 @@
-box2d/
-simulations/
+# Build outputs
 bin/
 build/
+*.o
+*.exe
+
+# Simulation data (generated at runtime)
+data/simulations/
+data/shape_study_results_*/
+simulations/
+tests/simulations/
+examples/simulations/
+*.csv
+*.json
+
+# Keep example data structure but not content
+!data/simulations/.gitkeep
+!examples/simulations/.gitkeep
+!tests/simulations/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Videos and images (large files)
+*.mp4
+*.avi
+*.mov
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# But keep example files
+!examples/*.png
+!examples/*.jpg
+!docs/*.png
+!docs/*.jpg
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.cmake
+
+# Box2D build artifacts (keep source)
+box2d/build/
+box2d/bin/
+
+# Backup files
+*_backup/
+*.bak
+
+# Test outputs
+test_results/
+coverage/
