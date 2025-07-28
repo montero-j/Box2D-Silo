@@ -195,7 +195,7 @@ class ShapeSpecificRunner:
                 self.log(f"❌ Error: {result.stderr}")
                 return 0
 
-            self.log(f"✅ Completada en {end_time - start_time:.1f}s")
+            self.log(f"Completada en {end_time - start_time:.1f}s")
 
             # Encontrar directorio de simulación
             sim_dirs = glob.glob("./simulations/sim_*")
@@ -232,7 +232,7 @@ class ShapeSpecificRunner:
                 for file_path in sim_dir.glob(file_pattern):
                     dest_path = sim_backup_dir / file_path.name
                     shutil.copy2(file_path, dest_path)
-                    self.log(f"📁 Copiado: {file_path.name}")
+                    self.log(f"Copiado: {file_path.name}")
 
             # Consolidar datos principales
             self.consolidate_simulation_data(sim_dir, avalanches)
@@ -260,7 +260,7 @@ class ShapeSpecificRunner:
                 else:
                     df_flow.to_csv(self.consolidated_flow_file, index=False)
 
-                self.log(f"📈 Flow data consolidado: {len(df_flow)} registros")
+                self.log(f"Flow data consolidado: {len(df_flow)} registros")
 
             # Consolidar avalanche data
             avalanche_file = Path(sim_dir) / "avalanche_data.csv"
@@ -331,7 +331,7 @@ class ShapeSpecificRunner:
         self.log("🚀 INICIANDO ESTUDIO DE AVALANCHAS")
         self.log(f"🎯 Forma: {self.shape_name.upper()}")
         self.log(f"🎯 Objetivo: {self.target_avalanches} avalanchas")
-        self.log(f"⏱️ Tiempo por simulación: {self.simulation_time} segundos")
+        self.log(f"Tiempo por simulación: {self.simulation_time} segundos")
         self.log(f"🔧 Base radius: {self.base_radius} m")
         self.log(f"🕳️ Outlet width: {self.outlet_width} m")
         self.log(f"🔵 Partículas: {self.particles}")
@@ -343,7 +343,7 @@ class ShapeSpecificRunner:
         try:
             while self.current_avalanches < self.target_avalanches:
                 remaining = self.target_avalanches - self.current_avalanches
-                self.log(f"\n📊 PROGRESO: {self.current_avalanches}/{self.target_avalanches} avalanchas ({remaining} restantes)")
+                self.log(f"\nPROGRESO: {self.current_avalanches}/{self.target_avalanches} avalanchas ({remaining} restantes)")
 
                 # Ejecutar simulación
                 avalanches = self.run_single_simulation()
@@ -355,7 +355,7 @@ class ShapeSpecificRunner:
                 self.save_state()
 
                 elapsed_hours = (time.time() - self.start_time) / 3600
-                self.log(f"📈 Total acumulado: {self.current_avalanches} avalanchas en {elapsed_hours:.2f}h")
+                self.log(f"Total acumulado: {self.current_avalanches} avalanchas en {elapsed_hours:.2f}h")
 
                 # Verificar si completamos
                 if self.current_avalanches >= self.target_avalanches:
@@ -365,13 +365,13 @@ class ShapeSpecificRunner:
 
             # Resumen final
             total_time = (time.time() - self.start_time) / 3600
-            self.log(f"\n🎉 ESTUDIO COMPLETADO - {self.shape_name.upper()}!")
-            self.log(f"✅ {self.current_avalanches} avalanchas acumuladas")
-            self.log(f"📊 {self.simulation_count} simulaciones ejecutadas")
-            self.log(f"⏱️ Tiempo total: {total_time:.2f} horas")
-            self.log(f"📈 Promedio: {self.current_avalanches/self.simulation_count:.1f} avalanchas/sim")
-            self.log(f"📁 Resultados en: {self.results_dir.absolute()}")
-            self.log(f"🎬 Datos para renderizado: {self.render_data_file}")
+            self.log(f"\nESTUDIO COMPLETADO - {self.shape_name.upper()}!")
+            self.log(f"{self.current_avalanches} avalanchas acumuladas")
+            self.log(f"{self.simulation_count} simulaciones ejecutadas")
+            self.log(f"Tiempo total: {total_time:.2f} horas")
+            self.log(f"Promedio: {self.current_avalanches/self.simulation_count:.1f} avalanchas/sim")
+            self.log(f"Resultados en: {self.results_dir.absolute()}")
+            self.log(f"Datos para renderizado: {self.render_data_file}")
 
             return True
 
@@ -405,7 +405,7 @@ def main():
 
     print(f"🚀 === ESTUDIO DE {args.shape.upper()} ===")
     print(f"🎯 Objetivo: {args.target} avalanchas")
-    print(f"⏱️ Tiempo por simulación: {args.time} segundos")
+    print(f"Tiempo por simulación: {args.time} segundos")
     print(f"🔧 Base radius: {args.base_radius} m")
     print(f"🕳️ Outlet width: {args.outlet_width} m")
     print(f"🔵 Partículas: {args.particles}")

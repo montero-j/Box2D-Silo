@@ -1,7 +1,7 @@
 #!/bin/bash
 # Tests básicos del simulador
 
-echo "🧪 EJECUTANDO TESTS BÁSICOS"
+echo "EJECUTANDO TESTS BÁSICOS"
 echo "============================"
 
 # Colores para output
@@ -19,7 +19,7 @@ report_test() {
     local result="$2"
 
     if [ "$result" -eq 0 ]; then
-        echo -e "  ✅ ${GREEN}PASS${NC}: $test_name"
+        echo -e "  PASS: $test_name"
         TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         echo -e "  ❌ ${RED}FAIL${NC}: $test_name"
@@ -150,21 +150,21 @@ fi
 
 # Resumen final
 echo ""
-echo "📊 RESUMEN DE TESTS"
+echo "RESUMEN DE TESTS"
 echo "==================="
-echo -e "✅ Tests pasados: ${GREEN}$TESTS_PASSED${NC}"
+echo -e "Tests pasados: ${GREEN}$TESTS_PASSED${NC}"
 echo -e "❌ Tests fallidos: ${RED}$TESTS_FAILED${NC}"
-echo -e "📈 Total tests: $((TESTS_PASSED + TESTS_FAILED))"
+echo -e "Total tests: $((TESTS_PASSED + TESTS_FAILED))"
 
 if [ $TESTS_FAILED -eq 0 ]; then
-    echo -e "\n🎉 ${GREEN}TODOS LOS TESTS PASARON${NC}"
+    echo -e "\n${GREEN}TODOS LOS TESTS PASARON${NC}"
     exit 0
 else
     echo -e "\n⚠️ ${YELLOW}ALGUNOS TESTS FALLARON${NC}"
     echo ""
-    echo "💡 Posibles soluciones:"
-    echo "   • Ejecutar: make clean && make"
-    echo "   • Instalar: pip3 install pandas numpy matplotlib"
-    echo "   • Verificar permisos de archivos"
+    echo "Posibles soluciones:"
+    echo "   - Ejecutar: make clean && make"
+    echo "   - Instalar: pip3 install pandas numpy matplotlib"
+    echo "   - Verificar permisos de archivos"
     exit 1
 fi

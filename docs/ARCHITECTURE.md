@@ -16,7 +16,7 @@ Box2D Silo Polygons está diseñado como un simulador modular de silos granulare
 └─────────────────────────────────────────┘
 ```
 
-## 📁 Estructura de Directorios
+## Estructura de Directorios
 
 ### Core del Simulador
 - **`src/`**: Código fuente C++ del simulador principal
@@ -135,7 +135,7 @@ float output_interval = 1.0f;    // intervalo datos
 2. **Actualizar lógica de detección**
 3. **Validar con datos existentes**
 
-## 🧪 Testing
+## Testing
 
 ### Niveles de Test
 

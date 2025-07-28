@@ -483,15 +483,15 @@ def main():
     # Configurar resolución según las opciones preestablecidas
     if args.hd:
         args.width, args.height = 1280, 1024
-        print("🎬 Usando resolución HD: 1280x1024")
+        print("Usando resolución HD: 1280x1024")
     elif args.full_hd:
         args.width, args.height = 1920, 1536
-        print("🎬 Usando resolución Full HD: 1920x1536")
+        print("Usando resolución Full HD: 1920x1536")
     elif getattr(args, '4k', False):
         args.width, args.height = 3840, 3072
-        print("🎬 Usando resolución 4K: 3840x3072")
+        print("Usando resolución 4K: 3840x3072")
     else:
-        print(f"🎬 Usando resolución personalizada: {args.width}x{args.height}")
+        print(f"Usando resolución personalizada: {args.width}x{args.height}")
 
     try:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -535,18 +535,18 @@ def main():
                 target_frames_in_video = args.target_video_duration * args.fps
                 calculated_frame_step = max(1, int(total_frames / target_frames_in_video))
 
-                print(f"📊 Estadísticas de la simulación:")
-                print(f"   • Duración de simulación: {sim_duration:.1f} segundos")
-                print(f"   • Total de frames disponibles: {total_frames:,}")
-                print(f"   • FPS objetivo del video: {args.fps}")
-                print(f"   • Duración objetivo del video: {args.target_video_duration:.1f} segundos")
-                print(f"   • Frame-step calculado: {calculated_frame_step} (renderizará cada {calculated_frame_step} frames)")
-                print(f"   • Frames que se renderizarán: ~{total_frames // calculated_frame_step:,}")
-                print(f"   • Duración estimada del video: {(total_frames // calculated_frame_step) / args.fps:.1f} segundos")
+                print(f"Estadísticas de la simulación:")
+                print(f"   - Duración de simulación: {sim_duration:.1f} segundos")
+                print(f"   - Total de frames disponibles: {total_frames:,}")
+                print(f"   - FPS objetivo del video: {args.fps}")
+                print(f"   - Duración objetivo del video: {args.target_video_duration:.1f} segundos")
+                print(f"   - Frame-step calculado: {calculated_frame_step} (renderizará cada {calculated_frame_step} frames)")
+                print(f"   - Frames que se renderizarán: ~{total_frames // calculated_frame_step:,}")
+                print(f"   - Duración estimada del video: {(total_frames // calculated_frame_step) / args.fps:.1f} segundos")
 
                 args.frame_step = calculated_frame_step
             else:
-                print("⚠️ No se pudo calcular frame_step automáticamente, usando valor por defecto")
+                print("No se pudo calcular frame_step automáticamente, usando valor por defecto")
 
         if args.num_large_circles > 0 or args.num_small_circles > 0 or args.num_polygon_particles > 0:
             total_particles = args.num_large_circles + args.num_small_circles + args.num_polygon_particles
@@ -601,12 +601,12 @@ def main():
                 '-preset', 'slow', '-crf', '18',
                 args.video_output
             ], check=True)
-            print(f"✅ Video generado: {args.video_output}")
+            print(f"Video generado: {args.video_output}")
         else:
-            print("⚠️ No hay frames para generar video")
+            print("No hay frames para generar video")
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"Error: {str(e)}")
         traceback.print_exc()
 
 if __name__ == "__main__":

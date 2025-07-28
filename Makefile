@@ -35,51 +35,51 @@ run-specific:
 
 # Tests
 test: $(TARGET)
-	@echo "🧪 Ejecutando tests básicos..."
+	@echo "Ejecutando tests básicos..."
 	@cd tests && ./run_basic_tests.sh
 
 # Ejemplo rápido
 example: $(TARGET)
-	@echo "🔵 Ejecutando ejemplo de círculos..."
+	@echo "Ejecutando ejemplo de círculos..."
 	@cd examples && ./quick_circle_simulation.sh
 
 # Análisis de ejemplo
 analyze:
-	@echo "📊 Analizando resultados..."
+	@echo "Analizando resultados..."
 	@cd examples && python3 basic_analysis.py
 
 # Estudio completo de forma
 study-%: $(TARGET)
-	@echo "🔬 Ejecutando estudio de $*..."
+	@echo "Ejecutando estudio de $*..."
 	@python3 scripts/run_shape_study.py $* --target 100 --time 60
 
 # Limpiar datos
 clean-data:
-	@echo "🗑️ Limpiando datos de simulaciones..."
+	@echo "Limpiando datos de simulaciones..."
 	@rm -rf data/simulations/sim_* data/shape_study_results_*
 	@rm -rf simulations/ tests/simulations/sim_* examples/simulations/sim_*
-	@echo "✅ Datos limpiados (estructura de directorios preservada)"
+	@echo "Datos limpiados (estructura de directorios preservada)"
 
 # Limpiar datos de ejemplo y tests solamente
 clean-temp:
-	@echo "🧹 Limpiando datos temporales..."
+	@echo "Limpiando datos temporales..."
 	@rm -rf simulations/ tests/simulations/sim_* examples/simulations/sim_*
-	@echo "✅ Datos temporales limpiados"
+	@echo "Datos temporales limpiados"
 
 # Limpiar todo
 clean-all: clean clean-data
 
 # Instalación de dependencias Python
 install-deps:
-	@echo "📦 Instalando dependencias Python..."
+	@echo "Instalando dependencias Python..."
 	@pip3 install pandas numpy matplotlib opencv-python
 
 # Verificar setup
 verify:
-	@echo "✔️ Verificando setup del proyecto..."
-	@python3 -c "import pandas, numpy, matplotlib; print('✅ Python dependencies OK')"
-	@[ -f bin/silo_simulator ] && echo "✅ Simulador compilado" || echo "❌ Falta compilar simulador"
-	@echo "✅ Verificación completada"
+	@echo "Verificando setup del proyecto..."
+	@python3 -c "import pandas, numpy, matplotlib; print('Python dependencies OK')"
+	@[ -f bin/silo_simulator ] && echo "Simulador compilado" || echo "Falta compilar simulador"
+	@echo "Verificación completada"
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR)

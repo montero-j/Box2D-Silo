@@ -599,13 +599,13 @@ int main(int argc, char* argv[]) {
     const int particlesPerRow = (int)floor((maxX_gen - minX_gen) / particleSpacing);
     const int totalRows = (int)ceil((float)TOTAL_PARTICLES / particlesPerRow);
 
-    std::cout << "📊 Configuración de distribución hexagonal:\n";
-    std::cout << "   • Espaciado entre partículas: " << particleSpacing << " m\n";
-    std::cout << "   • Altura de fila hexagonal: " << rowHeight << " m\n";
-    std::cout << "   • Partículas por fila: " << particlesPerRow << "\n";
-    std::cout << "   • Total de filas necesarias: " << totalRows << "\n";
-    std::cout << "   • Densidad de partículas: " << Density << " kg/m³\n";
-    std::cout << "   • Altura total estimada: " << (totalRows * rowHeight) << " m\n\n";
+    std::cout << "Configuración de distribución hexagonal:\n";
+    std::cout << "   - Espaciado entre partículas: " << particleSpacing << " m\n";
+    std::cout << "   - Altura de fila hexagonal: " << rowHeight << " m\n";
+    std::cout << "   - Partículas por fila: " << particlesPerRow << "\n";
+    std::cout << "   - Total de filas necesarias: " << totalRows << "\n";
+    std::cout << "   - Densidad de partículas: " << Density << " kg/m³\n";
+    std::cout << "   - Altura total estimada: " << (totalRows * rowHeight) << " m\n\n";
 
     // Vector para almacenar posiciones exactas
     std::vector<std::pair<float, float>> exactPositions;
@@ -631,7 +631,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::cout << "✅ Posiciones hexagonales generadas: " << exactPositions.size() << " posiciones\n";
+    std::cout << "Posiciones hexagonales generadas: " << exactPositions.size() << " posiciones\n";
 
     // Si necesitamos más partículas, llenar con distribución aleatoria en la parte superior
     while (exactPositions.size() < TOTAL_PARTICLES) {
@@ -641,10 +641,10 @@ int main(int argc, char* argv[]) {
         exactPositions.push_back({randomX, randomY});
     }
 
-    std::cout << "📈 Estadísticas de generación:\n";
-    std::cout << "   • Partículas con posicionamiento hexagonal: " << particlesPlaced << "\n";
-    std::cout << "   • Partículas con posicionamiento aleatorio: " << (exactPositions.size() - particlesPlaced) << "\n";
-    std::cout << "   • Total de posiciones generadas: " << exactPositions.size() << "\n\n";
+    std::cout << "Estadísticas de generación:\n";
+    std::cout << "   - Partículas con posicionamiento hexagonal: " << particlesPlaced << "\n";
+    std::cout << "   - Partículas con posicionamiento aleatorio: " << (exactPositions.size() - particlesPlaced) << "\n";
+    std::cout << "   - Total de posiciones generadas: " << exactPositions.size() << "\n\n";
 
     for (int i = 0; i < TOTAL_PARTICLES; ++i) {
 
@@ -769,7 +769,7 @@ int main(int argc, char* argv[]) {
 
             if (energyChange < STABILITY_THRESHOLD) {
                 stabilityCounter++;
-                std::cout << "⚖️  Sistema estabilizándose... (" << stabilityCounter << "/"
+                std::cout << "Sistema estabilizándose... (" << stabilityCounter << "/"
                          << REQUIRED_STABILITY_CHECKS << ") - Energía: "
                          << std::fixed << std::setprecision(3) << totalKineticEnergy << " J\n";
             } else {

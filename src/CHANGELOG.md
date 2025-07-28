@@ -32,57 +32,18 @@ Por qué se realizó este cambio.
 
 ## Tipos de Cambio
 
-- **🆕 NUEVA_FUNCIONALIDAD**: Nueva característica o capacidad
-- **🐛 CORRECCIÓN**: Corrección de errores o bugs
-- **⚡ OPTIMIZACIÓN**: Mejoras de rendimiento
-- **🔧 REFACTORING**: Reestructuración de código sin cambio funcional
-- **📖 DOCUMENTACIÓN**: Actualización de comentarios o documentación
-- **🧪 TESTING**: Adición o modificación de pruebas
-- **🎨 ESTILO**: Cambios de formato, indentación, etc.
-- **🔒 SEGURIDAD**: Correcciones relacionadas con seguridad
+- **NUEVA_FUNCIONALIDAD**: Nueva característica o capacidad
+- **CORRECCIÓN**: Corrección de errores o bugs
+- **OPTIMIZACIÓN**: Mejoras de rendimiento
+- **REFACTORING**: Reestructuración de código sin cambio funcional
+- **DOCUMENTACIÓN**: Actualización de comentarios o documentación
+- **TESTING**: Adición o modificación de pruebas
+- **ESTILO**: Cambios de formato, indentación, etc.
+- **SEGURIDAD**: Correcciones relacionadas con seguridad
 
 ---
 
 # Historial de Cambios
-
-## [28/07/2025] - ⚡ OPTIMIZACIÓN
-
-### Archivos Modificados
-- `../analysis/render_simulation.py`
-
-### Descripción
-Mejora significativa de la calidad y resolución del renderizado de simulaciones con contornos negros mejorados para las partículas.
-
-### Motivo
-Necesidad de generar videos de mayor calidad visual para presentaciones y análisis detallado, manteniendo el tamaño físico real de las partículas.
-
-### Detalles Técnicos
-- **Resolución mejorada**: Por defecto de 1200x1600 a 1920x2560 píxeles
-- **Parámetros de resolución configurables**:
-  - `--width` y `--height`: Resolución personalizada
-  - `--hd`: 1280x1024 píxeles
-  - `--full-hd`: 1920x1536 píxeles  
-  - `--4k`: 3840x3072 píxeles
-- **Contornos negros mejorados**:
-  - Uso de `GL_LINE_LOOP` en lugar de `GL_TRIANGLE_FAN` para contornos
-  - Línea de 2.0 píxeles de grosor para mejor definición
-  - Color negro sólido (alpha=1.0) para mayor contraste
-  - **Sin aumento del tamaño de partículas**: contorno dibujado exactamente en el borde
-- **Calidad visual optimizada**:
-  - Antialiasing habilitado (`GL_MULTISAMPLE`, `GL_LINE_SMOOTH`)
-  - Blending mejorado para suavizado
-  - Textura RGBA8 para mejor calidad de color
-  - Filtrado lineal con `GL_CLAMP_TO_EDGE`
-- **Geometría mejorada**: 50 segmentos para círculos (vs 30 anterior)
-
-### Pruebas Realizadas
-- [x] Compilación exitosa
-- [x] Test de renderizado con resolución por defecto (1920x2560)
-- [x] Verificación de contornos negros sin aumento de tamaño
-- [x] Test de parámetros de resolución (--hd, --full-hd, --4k)
-- [x] Validación de calidad visual mejorada
-
----
 
 ## [28/07/2025] - 📖 DOCUMENTACIÓN
 

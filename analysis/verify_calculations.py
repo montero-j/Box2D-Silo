@@ -59,7 +59,7 @@ def verify_avalanche_calculations(sim_dir):
         avalanche_flow = flow_data[mask].copy()
 
         if len(avalanche_flow) == 0:
-            print("  ❌ No se encontraron datos de flujo en este rango temporal")
+            print("  No se encontraron datos de flujo en este rango temporal")
             continue
 
         # Calcular partículas en esta avalancha desde flow_data
@@ -86,9 +86,9 @@ def verify_avalanche_calculations(sim_dir):
         print(f"  Diferencia: {av['particles_reported'] - calculated_particles}")
 
         if abs(av['particles_reported'] - calculated_particles) <= 5:  # Tolerancia pequeña
-            print("  ✅ Cálculo correcto")
+            print("  Cálculo correcto")
         else:
-            print("  ❌ Posible error en el cálculo")
+            print("  Posible error en el cálculo")
 
         # Mostrar algunas estadísticas del flujo durante la avalancha
         if len(avalanche_flow) > 0:

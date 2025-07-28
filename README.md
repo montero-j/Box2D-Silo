@@ -1,4 +1,21 @@
-# Box2D Silo Polygons - Simulador de Avalanchas Granulares
+# Box2D Silo Polygons - Simulador de Av│   ├── combine_distributions.py     # Combinación de datos
+│   ├── render_simulation.py         # Renderización visual
+│   └── verify_calculations.py       # Verificación de cálculos
+├── data/                    # Datos y resultados
+│   ├── simulations/           # Datos de simulaciones individuales
+│   └── shape_study_results_*/ # Resultados consolidados
+├── docs/                    # Documentación
+│   ├── ARCHITECTURE.md        # Arquitectura del proyecto
+│   ├── Goldberg-J.Stat.Mech.2018.pdf # Artículo de referencia
+│   └── comandos.txt           # Comandos de ejemplo
+├── examples/                # Ejemplos y demos
+│   ├── quick_circle_simulation.sh  # Simulación rápida
+│   └── basic_analysis.py      # Análisis básico
+├── tests/                   # Tests del sistema
+│   └── run_basic_tests.sh     # Tests básicos
+├── Makefile                 # Sistema de compilación mejorado
+├── LICENSE                  # Licencia MIT
+└── CONTRIBUTING.md          # Guía de contribuciónnchas Granulares
 
 ## Descripción
 
@@ -17,39 +34,39 @@ Este proyecto es un simulador de silos granulares construido con Box2D que estud
 ## Estructura del Proyecto
 
 ```
-├── 📁 src/                     # Código fuente C++
+├── src/                     # Código fuente C++
 │   └── silo_hexagono.cpp      # Simulador principal
-├── 📁 bin/                     # Ejecutables compilados
+├── bin/                     # Ejecutables compilados
 │   └── silo_simulator         # Simulador principal
-├── 📁 box2d/                   # Motor de física Box2D
-├── 📁 scripts/                 # Scripts de automatización
+├── box2d/                   # Motor de física Box2D
+├── scripts/                 # Scripts de automatización
 │   ├── run_shape_study.py     # Estudios por forma específica
 │   └── run_all_shapes_study.sh # Estudios completos
-├── 📁 analysis/                # Scripts de análisis Python
+├── analysis/                # Scripts de análisis Python
 │   ├── avalanche_distribution.py    # Análisis de distribuciones
 │   ├── combine_distributions.py     # Combinación de datos
 │   ├── render_simulation.py         # Renderización visual
 │   └── verify_calculations.py       # Verificación de cálculos
-├── 📁 data/                    # Datos y resultados
+├── data/                    # Datos y resultados
 │   ├── simulations/           # Datos de simulaciones individuales
 │   └── shape_study_results_*/ # Resultados consolidados
-├── 📁 docs/                    # Documentación
+├── docs/                    # Documentación
 │   ├── ARCHITECTURE.md        # Arquitectura del proyecto
 │   ├── Goldberg-J.Stat.Mech.2018.pdf # Artículo de referencia
 │   └── comandos.txt           # Comandos de ejemplo
-├── � examples/                # Ejemplos y demos
+├── examples/                # Ejemplos y demos
 │   ├── quick_circle_simulation.sh  # Simulación rápida
 │   └── basic_analysis.py      # Análisis básico
-├── 📁 tests/                   # Tests del sistema
+├── tests/                   # Tests del sistema
 │   └── run_basic_tests.sh     # Tests básicos
-├── 📄 Makefile                 # Sistema de compilación mejorado
-├── 📄 LICENSE                  # Licencia MIT
-└── 📄 CONTRIBUTING.md          # Guía de contribución
+├── Makefile                 # Sistema de compilación mejorado
+├── LICENSE                  # Licencia MIT
+└── CONTRIBUTING.md          # Guía de contribución
 ```
 
 ## Instalación y Compilación
 
-### ⚡ Inicio Rápido
+### Inicio Rápido
 
 ```bash
 # 1. Clonar el repositorio
@@ -494,5 +511,5 @@ git add src/ scripts/ analysis/ docs/ examples/ tests/
 git add README.md Makefile LICENSE .gitignore
 
 # NO versionar datos (ya están en .gitignore)
-# git add data/simulations/  # ❌ NO hacer esto
+# git add data/simulations/  # NO hacer esto
 ```
