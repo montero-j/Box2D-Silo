@@ -1,4 +1,4 @@
 box2d/
-resultados/
-frames/
-frames2/
+simulations/
+bin/
+build/

@@ -10,7 +10,8 @@ BUILD_DIR := build
 BIN_DIR := bin
 
 # Archivos fuente
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)
+#SRCS := $(wildcard $(SRC_DIR)/*.cpp)
+SRCS := $(filter-out $(SRC_DIR)/silo_simulator.cpp,$(wildcard $(SRC_DIR)/*.cpp))
 OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 TARGET := $(BIN_DIR)/silo_simulator
 
