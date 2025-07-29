@@ -1,7 +1,6 @@
-source ~/gpu_env/bin/activate && python analysis/render_simulation.py --target-video-duration 10 --video-output video_2000_particles_test.mp4 --data-path "./simulations/sim_2000_chi0.00_ratio0.00_br0.050_lg2000_sm0_poly0_sides5_outlet0.38/simulation_data.csv" --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --base-radius 0.05 --silo-height 7.80 --silo-width 2.6 --outlet-width 0.38 --min-time -30.0
+source ~/gpu_env/bin/activate && python analysis/render_simulation.py --target-video-duration 10 --video-output video_2000_particles_test.mp4 --data-path "./simulations/sim_2000_chi0.00_ratio0.00_br0.050_lg2000_sm0_poly0_sides5_outlet0.39/simulation_data.csv" --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --base-radius 0.05 --silo-height 7.80 --silo-width 2.6 --outlet-width 0.39 --min-time -30.0
 
 
-./bin/silo_simulator --size-ratio 0 --chi 0 --base-radius 0.05 --outlet-width 0.38 --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --num-polygon-particles 0 --current-sim 1 --total-sims 1 --save-sim-data 1
+./bin/silo_simulator --size-ratio 0 --chi 0 --base-radius 0.05 --outlet-width 0.39 --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --num-polygon-particles 0 --current-sim 1 --total-sims 1 --save-sim-data 1
 
 
-buscar un estacionario

@@ -28,7 +28,7 @@ float silo_height = 3*SILO_WIDTH;//11.70f;    // Altura del silo
 
 // Constantes de simulación
 const float TIME_STEP = 0.001f;  // Timestep
-const int SUB_STEP_COUNT = 40;   // Substeps
+const int SUB_STEP_COUNT = 200;   // Substeps
 const float BLOCKAGE_THRESHOLD = 5.0f;
 const float RECORD_INTERVAL = 0.01f;
 const float MIN_AVALANCHE_DURATION = 0.5f;  // Tiempo mínimo de flujo para considerar atasco roto
@@ -814,7 +814,7 @@ int main(int argc, char* argv[]) {
     float exitedOriginalMass = 0.0f;
     float timeSinceLastExit = 0.0f;
 
-    while (avalancheCount < 3000.0f && !simulationInterrupted) {
+    while (avalancheCount < 3.0f && !simulationInterrupted) {
         // Paso de simulación Box2D
         b2World_Step(worldId, TIME_STEP, SUB_STEP_COUNT);
         simulationTime += TIME_STEP;
