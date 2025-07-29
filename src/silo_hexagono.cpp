@@ -18,17 +18,17 @@
 #include "box2d/box2d.h"
 
 // Parámetros ajustables (configurables por línea de comandos)
-float BASE_RADIUS = 0.05f;
+float BASE_RADIUS = 0.5f;
 float SIZE_RATIO = 0.0f;
 float CHI = 0.0f;
 int TOTAL_PARTICLES = 2000;   // Goldberg: 2000 partículas
-float OUTLET_WIDTH = 0.39f;   // D/d=3.9 -> 0.39m para ~50 part/avalancha
-float SILO_WIDTH = 2.6f;       // Ancho total del silo
-float silo_height = 3*SILO_WIDTH;//11.70f;    // Altura del silo
+float OUTLET_WIDTH = 3.9f*2*BASE_RADIUS;   // D/d=3.9 -> 0.39m para ~50 part/avalancha
+float SILO_WIDTH = 20.2f*2*BASE_RADIUS;       // Ancho total del silo
+float silo_height = 120*2*BASE_RADIUS;//11.70f;    // Altura del silo
 
 // Constantes de simulación
 const float TIME_STEP = 0.001f;  // Timestep
-const int SUB_STEP_COUNT = 200;   // Substeps
+const int SUB_STEP_COUNT = 20;   // Substeps
 const float BLOCKAGE_THRESHOLD = 5.0f;
 const float RECORD_INTERVAL = 0.01f;
 const float MIN_AVALANCHE_DURATION = 0.5f;  // Tiempo mínimo de flujo para considerar atasco roto
@@ -589,7 +589,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Generando " << TOTAL_PARTICLES << " partículas con distribución hexagonal sistemática...\n";
 
 
-    float Density = 0.01f;
+    float Density = 1.0f;
 
     // DISTRIBUCIÓN HEXAGONAL
     const float particleSpacing = BASE_RADIUS * 3.5f;  // Distancia entre centros (apenas sin tocar)
