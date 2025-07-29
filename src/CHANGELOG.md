@@ -45,6 +45,32 @@ Por qué se realizó este cambio.
 
 # Historial de Cambios
 
+## [29/07/2025] - 🔧 OPTIMIZACIÓN
+
+### Archivos Modificados
+- `silo_hexagono.cpp`
+
+### Descripción
+Escalado del sistema para usar diámetro de partícula = 1 y densidad = 1.
+
+### Motivo
+Box2D tenía inconvenientes para resolver correctamente un sistema con dimensiones muy pequeñas, lo que causaba superposición de partículas y comportamiento físico inestable.
+
+### Detalles Técnicos
+- Modificado el diámetro de partícula de escala pequeña a 1.0 unidades
+- Ajustada la densidad de partículas a 1.0 para mantener proporciones físicas
+- Escalado proporcional de todas las dimensiones del silo
+- Mejora significativa en la estabilidad de la simulación física
+- Eliminación de superposiciones no físicas entre partículas
+
+### Pruebas Realizadas
+- [x] Compilación exitosa
+- [x] Test básico sin superposición de partículas
+- [x] Verificación de estabilidad en simulación prolongada
+- [x] Validación de comportamiento físico realista
+
+---
+
 ## [28/07/2025] - 📖 DOCUMENTACIÓN
 
 ### Archivos Modificados
