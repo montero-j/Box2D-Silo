@@ -213,7 +213,36 @@ class SiloRenderer:
             gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
             gl.glEnable(gl.GL_POINT_SMOOTH)
 
+            # Filtrar partículas visibles
             visible_indices = np.where(positions[:, 1] > -1.5)[0]
+
+            # MEJORA DEL ORDENAMIENTO: Estrategia más sofisticada para minimizar superposiciones
+            if len(visible_indices) > 0:
+                # Crear un criterio de ordenamiento que considere:
+                # 1. Tipo de partícula (círculos primero, luego polígonos)
+                # 2. Posición Y (atrás hacia adelante)
+                # 3. Tamaño (partículas más grandes primero para que aparezcan atrás)
+
+                particle_priorities = []
+                for idx in visible_indices:
+                    y_pos = positions[idx, 1]
+                    p_type = types[idx]
+                    p_size = sizes[idx]
+
+                    # Criterio de prioridad de renderizado:
+                    # - Tipo: círculos (0) van primero, polígonos (1) después
+                    # - Y: posiciones más bajas (atrás) van primero
+                    # - Tamaño: partículas más grandes van primero (renderizar atrás)
+                    priority = (
+                        p_type * 1000000 +          # Tipo principal (círculos primero)
+                        int(y_pos * 1000) * 100 +   # Posición Y (multiplicado para precisión)
+                        int((1.0 - p_size) * 100)   # Tamaño inverso (grandes primero)
+                    )
+                    particle_priorities.append((priority, idx))
+
+                # Ordenar por prioridad de renderizado
+                particle_priorities.sort(key=lambda x: x[0])
+                visible_indices = [idx for _, idx in particle_priorities]
 
             for idx in visible_indices:
                 pos = positions[idx]
@@ -264,7 +293,7 @@ class SiloRenderer:
     def _draw_circle_with_border(self, pos, radius, color, num_segments=50):
         # Contorno negro más definido usando LINE_LOOP para mayor calidad
         border_thickness_world_units = 0.0008  # Ajustado para mejor visibilidad sin aumentar tamaño
-        
+
         # Dibujar contorno negro con mayor calidad
         gl.glLineWidth(2.0)  # Línea más gruesa para mejor definición
         gl.glColor4f(0, 0, 0, 1.0)  # Negro sólido para mejor contraste
@@ -291,25 +320,46 @@ class SiloRenderer:
         if num_sides < 3:
             return
 
-        # Dibujar contorno negro con mayor calidad
+
+        POLYGON_SKIN_RADIUS = 0.005  # Valor del simulador
+
+        # Correcciones basadas en análisis empírico de datos CSV vs física real
+        if num_sides == 3:
+            # Para triángulos: reducción moderada para coincidir con física
+            adjusted_radius = circum_radius * 0.90
+        elif num_sides == 4:
+            # Para cuadrados: reducción leve
+            adjusted_radius = circum_radius * 0.92
+        elif num_sides <= 6:
+            # Para pentágonos y hexágonos: reducción mínima
+            adjusted_radius = circum_radius * 0.95
+        else:
+            # Para polígonos de muchos lados: casi sin reducción
+            adjusted_radius = circum_radius * 0.98
+
+        # Protección contra radios excesivamente pequeños
+        min_radius = circum_radius * 0.85  # Mínimo 85% del radio original
+        adjusted_radius = max(adjusted_radius, min_radius)
+
+        # Dibujar contorno negro usando el radio ajustado
         gl.glLineWidth(2.0)
         gl.glColor4f(0, 0, 0, 1.0)  # Negro sólido
         gl.glBegin(gl.GL_LINE_LOOP)
         for i in range(num_sides):
             angle = 2.0 * math.pi * i / num_sides
-            x = pos[0] + circum_radius * math.cos(angle)
-            y = pos[1] + circum_radius * math.sin(angle)
+            x = pos[0] + adjusted_radius * math.cos(angle)
+            y = pos[1] + adjusted_radius * math.sin(angle)
             gl.glVertex2f(x, y)
         gl.glEnd()
 
-        # Dibujar interior del polígono (sin cambiar el tamaño)
+        # Dibujar interior del polígono usando el mismo radio ajustado
         gl.glColor4f(*color)
         gl.glBegin(gl.GL_TRIANGLE_FAN)
         gl.glVertex2f(pos[0], pos[1])
         for i in range(num_sides + 1):
             angle = 2.0 * math.pi * i / num_sides
-            x = pos[0] + circum_radius * math.cos(angle)
-            y = pos[1] + circum_radius * math.sin(angle)
+            x = pos[0] + adjusted_radius * math.cos(angle)
+            y = pos[1] + adjusted_radius * math.sin(angle)
             gl.glVertex2f(x, y)
         gl.glEnd()
 
@@ -592,18 +642,18 @@ def main():
 
         subprocess.run(['find', args.output_dir, '-type', 'f', '-size', '0c', '-delete'], check=False)
 
-        if len(frames) > 0:
-            subprocess.run([
-                'ffmpeg', '-y', '-framerate', str(args.fps),
-                '-i', f'{args.output_dir}/frame_%05d.png',
-                '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-                '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
-                '-preset', 'slow', '-crf', '18',
-                args.video_output
-            ], check=True)
-            print(f"Video generado: {args.video_output}")
-        else:
-            print("No hay frames para generar video")
+        # if len(frames) > 0:
+        #     subprocess.run([
+        #         'ffmpeg', '-y', '-framerate', str(args.fps),
+        #         '-i', f'{args.output_dir}/frame_%05d.png',
+        #         '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+        #         '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
+        #         '-preset', 'slow', '-crf', '18',
+        #         args.video_output
+        #     ], check=True)
+        #     print(f"Video generado: {args.video_output}")
+        # else:
+        #     print("No hay frames para generar video")
 
     except Exception as e:
         print(f"Error: {str(e)}")

@@ -1,12 +1,12 @@
 source ~/gpu_env/bin/activate && python analysis/render_simulation.py --target-video-duration 10 --video-output video_2000_particles_test.mp4 --data-path "./simulations/sim_2000_chi0.00_ratio0.00_br0.050_lg2000_sm0_poly0_sides5_outlet1.95/simulation_data.csv" --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --base-radius 0.5 --silo-height 26.0 --silo-width 2.6 --outlet-width 0.39 --min-time -30.0
 
 
-./bin/silo_simulator --size-ratio 0 --chi 0 --base-radius 0.05 --outlet-width 0.39 --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --num-polygon-particles 0 --current-sim 1 --total-sims 1 --save-sim-data 1
+./bin/silo_simulator --base-radius 0.5 --total-particles 2010 --num-large-circles 2000 --num-small-circles 0 --num-polygon-particles 10 --num-sides 3 --current-sim 1 --total-sims 1 --save-sim-data 1
 
 
 
 
-source ~/gpu_env/bin/activate && python analysis/render_simulation.py --target-video-duration 10 --video-output video_2000_particles_test.mp4 --data-path "./simulations/sim_2000_chi0.00_ratio0.00_br0.500_lg2000_sm0_poly0_sides5_outlet3.90/simulation_data.csv" --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --base-radius 0.5 --silo-height 7676.6 --silo-width 20.2 --outlet-width 3.9 --min-time -30.0
+source ~/gpu_env/bin/activate && python analysis/render_simulation.py --target-video-duration 10 --video-output video_2000_particles_test.mp4 --data-path "./simulations/sim_2000_chi0.00_ratio0.00_br0.500_lg2000_sm0_poly10_sides3_outlet3.90/simulation_data.csv" --total-particles 2000 --num-large-circles 2000 --num-small-circles 0 --base-radius 0.5 --silo-height 120.0 --silo-width 20.2 --outlet-width 3.9 --min-time -30.0
 
 
 
@@ -15,3 +15,19 @@ Cosas para hacer
 tengo que contabilizar las avalanchas de tamaño cero
 eliminar que guarde el rayo para dibujar
 
+Inicio de simulación granular (Metodología Goldberg et al. 2018)
+Radio base (r₀): 0.5 m
+Razón de tamaño (r): 0
+Fracción de partículas pequeñas (χ): 0
+Partículas circulares grandes: 2000 (Radio: 0.5)
+Partículas circulares pequeñas: 0 (Radio: 0)
+Partículas poligonales: 0 (Lados: 5, Perímetro: 0)
+Total de partículas: 2000
+Ancho del silo: 20.2 m
+Altura del silo: 120 m
+Abertura del silo: 3.9 m (3.9 diámetros base)
+Zona de reinyección: Ancho=6.262m, Altura=120-125.16m
+Duración de simulación: 150 segundos
+Perturbaciones aleatorias: Deshabilitadas (Goldberg)
+Simulación Actual: 1 / 1
+Guardar Datos Detallados: Sí

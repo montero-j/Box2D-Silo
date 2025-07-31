@@ -1,4 +1,11 @@
-# Box2D Silo Polygons - Simulador de Av│   ├── combine_distributions.py     # Combinación de datos
+# Box2D Silo Polygons - Simulador de Av│   ├── combine_distributions.py     # Combin# 3. Ejemplo rápido
+make example        # Simulación de 60 segundos
+make analyze        # Analizar resultados
+
+# 4. Alternativamente: Sistema con parámetros de archivo
+./ejecutar_simulacion.sh                    # Usar configuración por defecto
+./ejecutar_simulacion.sh simulacion_pequena.txt  # Simulación pequeña de prueba
+```n de datos
 │   ├── render_simulation.py         # Renderización visual
 │   └── verify_calculations.py       # Verificación de cálculos
 ├── data/                    # Datos y resultados
@@ -59,6 +66,10 @@ Este proyecto es un simulador de silos granulares construido con Box2D que estud
 │   └── basic_analysis.py      # Análisis básico
 ├── tests/                   # Tests del sistema
 │   └── run_basic_tests.sh     # Tests básicos
+├── ejecutar_simulacion.sh   # Sistema de ejecución con parámetros de archivo
+├── parametros_ejemplo.txt    # Archivo de ejemplo de parámetros
+├── simulacion_pequena.txt    # Configuración de simulación pequeña
+├── simulacion_comandos.txt   # Configuración basada en comandos predefinidos
 ├── Makefile                 # Sistema de compilación mejorado
 ├── LICENSE                  # Licencia MIT
 └── CONTRIBUTING.md          # Guía de contribución
@@ -196,6 +207,97 @@ python3 run_goldberg_study.py
 # - 2000 partículas
 # - 3000 avalanchas objetivo
 # - Expectativa: ~50 partículas/avalancha
+```
+
+## Sistema de Ejecución con Parámetros de Archivo
+
+### Descripción
+
+El sistema incluye un script de bash (`ejecutar_simulacion.sh`) que permite ejecutar el `silo_simulator` usando parámetros definidos en archivos de texto, facilitando la configuración y reutilización de configuraciones de simulación.
+
+### Archivos del Sistema
+
+- `ejecutar_simulacion.sh` - Script principal que compila y ejecuta las simulaciones
+- `parametros_ejemplo.txt` - Archivo de ejemplo con todos los parámetros disponibles
+- `simulacion_pequena.txt` - Configuración para una simulación pequeña de prueba
+- `simulacion_comandos.txt` - Configuración basada en comandos predefinidos
+
+### Uso del Sistema de Parámetros
+
+#### Uso básico
+```bash
+# Usar archivo por defecto (parametros_ejemplo.txt)
+./ejecutar_simulacion.sh
+
+# Especificar archivo de parámetros específico
+./ejecutar_simulacion.sh simulacion_pequena.txt
+
+# Ver ayuda del sistema
+./ejecutar_simulacion.sh --help
+```
+
+#### Formato del archivo de parámetros
+
+Los archivos de parámetros usan el formato `PARAMETRO=VALOR`:
+
+```
+# Comentarios empiezan con #
+BASE_RADIUS=0.5
+TOTAL_PARTICLES=2000
+NUM_LARGE_CIRCLES=2000
+NUM_SMALL_CIRCLES=0
+NUM_POLYGON_PARTICLES=10
+NUM_SIDES=3
+CURRENT_SIM=1
+TOTAL_SIMS=1
+SAVE_SIM_DATA=1
+
+# Parámetros opcionales
+# SILO_HEIGHT=120.0
+# SILO_WIDTH=20.2
+# OUTLET_WIDTH=3.9
+# MIN_TIME=-30.0
+```
+
+#### Parámetros soportados
+
+| Parámetro | Descripción | Requerido |
+|-----------|-------------|-----------|
+| `BASE_RADIUS` | Radio base de las partículas | Sí |
+| `TOTAL_PARTICLES` | Número total de partículas | Sí |
+| `NUM_LARGE_CIRCLES` | Número de círculos grandes | Sí |
+| `NUM_SMALL_CIRCLES` | Número de círculos pequeños | Sí |
+| `NUM_POLYGON_PARTICLES` | Número de partículas poligonales | Sí |
+| `NUM_SIDES` | Número de lados de los polígonos | Sí |
+| `CURRENT_SIM` | Simulación actual | Sí |
+| `TOTAL_SIMS` | Total de simulaciones | Sí |
+| `SAVE_SIM_DATA` | Guardar datos (1 o 0) | Sí |
+| `SILO_HEIGHT` | Altura del silo | Opcional |
+| `SILO_WIDTH` | Ancho del silo | Opcional |
+| `OUTLET_WIDTH` | Ancho de la salida | Opcional |
+| `MIN_TIME` | Tiempo mínimo | Opcional |
+
+#### Funcionalidades del script
+
+1. **Compilación automática**: Verifica y compila Box2D si es necesario
+2. **Validación**: Verifica que los archivos de parámetros existan
+3. **Flexibilidad**: Permite parámetros opcionales
+4. **Output colorizado**: Facilita seguir el progreso
+5. **Manejo de errores**: Se detiene si hay problemas en la compilación o ejecución
+
+#### Ejemplos de uso
+
+```bash
+# Simulación de prueba rápida (100 partículas)
+./ejecutar_simulacion.sh simulacion_pequena.txt
+
+# Simulación con configuración predefinida
+./ejecutar_simulacion.sh simulacion_comandos.txt
+
+# Crear tu propia configuración
+cp parametros_ejemplo.txt mi_simulacion.txt
+# Editar mi_simulacion.txt según necesidades
+./ejecutar_simulacion.sh mi_simulacion.txt
 ```
 
 ## Análisis de Resultados

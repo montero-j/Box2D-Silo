@@ -592,7 +592,15 @@ int main(int argc, char* argv[]) {
     float Density = 1.0f;
 
     // DISTRIBUCIÓN HEXAGONAL
-    const float particleSpacing = BASE_RADIUS * 3.5f;  // Distancia entre centros (apenas sin tocar)
+    // Calcular el radio más grande entre círculos y polígonos para evitar superposiciones
+    float maxParticleRadius = largeCircleRadius;  // Círculos grandes (BASE_RADIUS)
+    if (NUM_POLYGON_PARTICLES > 0) {
+        float polyCircumRadius = POLYGON_PERIMETER / (2.0f * NUM_SIDES * sin(M_PI / NUM_SIDES));
+        maxParticleRadius = std::max(maxParticleRadius, polyCircumRadius);
+    }
+    
+    // Espaciado basado en la partícula más grande + margen de seguridad
+    const float particleSpacing = maxParticleRadius * 2.2f;  // Diámetro + 10% margen de seguridad
     const float rowHeight = particleSpacing * 0.866f;  // Altura de fila hexagonal (√3/2)
 
     // Calcular cuántas partículas caben por fila
