@@ -28,7 +28,7 @@ float silo_height = 120*2*BASE_RADIUS;//11.70f;    // Altura del silo
 
 // Constantes de simulación
 const float TIME_STEP = 0.001f;  // Timestep
-const int SUB_STEP_COUNT = 20;   // Substeps
+const int SUB_STEP_COUNT = 200;   // Substeps
 const float BLOCKAGE_THRESHOLD = 5.0f;
 const float RECORD_INTERVAL = 0.01f;
 const float MIN_AVALANCHE_DURATION = 0.5f;  // Tiempo mínimo de flujo para considerar atasco roto
@@ -511,6 +511,10 @@ int main(int argc, char* argv[]) {
 
     // Definición de la forma de las paredes
     b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+    shapeDef.filter.categoryBits = 0x0001;
+    shapeDef.filter.maskBits = 0xFFFF;  // Colisionar con todo
+
     shapeDef.material.friction = 0.5f;
     shapeDef.material.restitution = 0.05f;
 
@@ -583,7 +587,7 @@ int main(int argc, char* argv[]) {
     std::shuffle(particleTypesToCreate.begin(), particleTypesToCreate.end(), randomEngine);
 
     const int BOX2D_MAX_POLYGON_VERTICES = 8;
-    const float POLYGON_SKIN_RADIUS = 0.005f;
+
 
     // Crear partículas con distribución hexagonal
     std::cout << "Generando " << TOTAL_PARTICLES << " partículas con distribución hexagonal sistemática...\n";
@@ -599,6 +603,7 @@ int main(int argc, char* argv[]) {
         maxParticleRadius = std::max(maxParticleRadius, polyCircumRadius);
     }
     
+
     // Espaciado basado en la partícula más grande + margen de seguridad
     const float particleSpacing = maxParticleRadius * 2.2f;  // Diámetro + 10% margen de seguridad
     const float rowHeight = particleSpacing * 0.866f;  // Altura de fila hexagonal (√3/2)
@@ -662,6 +667,7 @@ int main(int argc, char* argv[]) {
         b2BodyDef particleDef = b2DefaultBodyDef();
         particleDef.type = b2_dynamicBody;
         particleDef.position = (b2Vec2){particleX, particleY};
+        particleDef.isBullet = false;
         b2BodyId particleId = b2CreateBody(worldId, &particleDef);
 
         if (i > 0 && i % 200 == 0) {
@@ -696,6 +702,7 @@ int main(int argc, char* argv[]) {
             }
             float polyCircumRadius = POLYGON_PERIMETER / (2.0f * currentNumSides * sin(M_PI / currentNumSides));
             currentParticleSize = polyCircumRadius;
+            const float POLYGON_SKIN_RADIUS = 0.1f * polyCircumRadius;//0.5f;
 
             b2Vec2 vertices[BOX2D_MAX_POLYGON_VERTICES];
             int actualNumSides = currentNumSides;

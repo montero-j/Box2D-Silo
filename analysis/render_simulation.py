@@ -13,13 +13,25 @@ import math
 
 class SiloRenderer:
     def __init__(self, width=1920, height=2560,
-                 base_radius=0.065, size_ratio=0.4,
+                 base_radius=0.5, size_ratio=0.4,
                  num_large_circles=0, num_small_circles=0, num_polygon_particles=0,
-                 silo_height=11.70, silo_width=2.6, outlet_width=0.3056):
+                 silo_height=11.70, silo_width=2.6, outlet_width=0.3056,
+                 high_quality=False):
         self.width = width
         self.height = height
-        self.particle_scale = 150
-        self.min_particle_size = 5
+        self.high_quality = high_quality
+        # Ajustar configuraciones basadas en calidad
+        if high_quality:
+            self.particle_scale = 200  # Mayor escala para mejor detalle
+            self.min_particle_size = 8
+            self.particle_border = 3
+            self.circle_segments = 100  # Más segmentos para círculos más suaves
+        else:
+            self.particle_scale = 150
+            self.min_particle_size = 5
+            self.particle_border = 2
+            self.circle_segments = 50
+        
         self.large_particle_radius = base_radius
         self.small_particle_radius = base_radius * size_ratio
         self.num_large_circles = num_large_circles
@@ -27,7 +39,6 @@ class SiloRenderer:
         self.num_polygon_particles = num_polygon_particles
         self.total_particles = num_large_circles + num_small_circles + num_polygon_particles
         self.debug_mode = True
-        self.particle_border = 2
         self.silo_height = silo_height
         self.silo_width = silo_width
         self.wall_thickness = 0.1
@@ -42,7 +53,16 @@ class SiloRenderer:
                 glut.glutInit()
                 self._glut_initialized = True
 
-            glut.glutInitDisplayMode(glut.GLUT_DOUBLE | glut.GLUT_RGBA)
+            # Habilitar multisampling para antialiasing de alta calidad
+            display_mode = glut.GLUT_DOUBLE | glut.GLUT_RGBA
+            if self.high_quality:
+                # Intentar habilitar multisampling para antialiasing
+                try:
+                    display_mode |= glut.GLUT_MULTISAMPLE
+                except:
+                    pass  # Si no es soportado, continuar sin multisampling
+            
+            glut.glutInitDisplayMode(display_mode)
             glut.glutInitWindowSize(self.width, self.height)
             if hasattr(self, 'window') and self.window:
                 glut.glutDestroyWindow(self.window)
@@ -60,8 +80,16 @@ class SiloRenderer:
                 gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None
             )
             # Configuración de filtrado para mejor calidad
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+            if self.high_quality:
+                # Usar filtrado de mayor calidad para imágenes de alta resolución
+                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR_MIPMAP_LINEAR)
+                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+                # Generar mipmaps para mejor calidad de escalado
+                gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
+            else:
+                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+            
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
 
@@ -85,12 +113,27 @@ class SiloRenderer:
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffer)
             gl.glViewport(0, 0, self.width, self.height)
 
-            # Habilitar antialiasing para mejor calidad visual
-            gl.glEnable(gl.GL_MULTISAMPLE)
-            gl.glEnable(gl.GL_LINE_SMOOTH)
-            gl.glEnable(gl.GL_BLEND)
-            gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-            gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
+            # Configuraciones de calidad mejoradas
+            if self.high_quality:
+                # Habilitar antialiasing de máxima calidad
+                gl.glEnable(gl.GL_MULTISAMPLE)
+                gl.glEnable(gl.GL_LINE_SMOOTH)
+                gl.glEnable(gl.GL_POLYGON_SMOOTH)
+                gl.glEnable(gl.GL_BLEND)
+                gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+                gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
+                gl.glHint(gl.GL_POLYGON_SMOOTH_HINT, gl.GL_NICEST)
+                gl.glHint(gl.GL_PERSPECTIVE_CORRECTION_HINT, gl.GL_NICEST)
+                
+                # Configurar líneas de mayor calidad
+                gl.glLineWidth(2.0)
+            else:
+                # Configuración estándar
+                gl.glEnable(gl.GL_MULTISAMPLE)
+                gl.glEnable(gl.GL_LINE_SMOOTH)
+                gl.glEnable(gl.GL_BLEND)
+                gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+                gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
 
             gl.glClearColor(0.95, 0.95, 0.95, 1.0)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -103,6 +146,7 @@ class SiloRenderer:
             target_world_bottom = self.ground_level_y - self.wall_thickness
             target_world_top = self.silo_height + self.wall_thickness
 
+            # Calcular margen basado en el tamaño de las partículas
             margin_particle = max(self.large_particle_radius, self.small_particle_radius,
                                 self.large_particle_radius * 1.5)
             extra_margin_x = 0.2
@@ -213,37 +257,9 @@ class SiloRenderer:
             gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
             gl.glEnable(gl.GL_POINT_SMOOTH)
 
-            # Filtrar partículas visibles
-            visible_indices = np.where(positions[:, 1] > -1.5)[0]
-
-            # MEJORA DEL ORDENAMIENTO: Estrategia más sofisticada para minimizar superposiciones
-            if len(visible_indices) > 0:
-                # Crear un criterio de ordenamiento que considere:
-                # 1. Tipo de partícula (círculos primero, luego polígonos)
-                # 2. Posición Y (atrás hacia adelante)
-                # 3. Tamaño (partículas más grandes primero para que aparezcan atrás)
-
-                particle_priorities = []
-                for idx in visible_indices:
-                    y_pos = positions[idx, 1]
-                    p_type = types[idx]
-                    p_size = sizes[idx]
-
-                    # Criterio de prioridad de renderizado:
-                    # - Tipo: círculos (0) van primero, polígonos (1) después
-                    # - Y: posiciones más bajas (atrás) van primero
-                    # - Tamaño: partículas más grandes van primero (renderizar atrás)
-                    priority = (
-                        p_type * 1000000 +          # Tipo principal (círculos primero)
-                        int(y_pos * 1000) * 100 +   # Posición Y (multiplicado para precisión)
-                        int((1.0 - p_size) * 100)   # Tamaño inverso (grandes primero)
-                    )
-                    particle_priorities.append((priority, idx))
-
-                # Ordenar por prioridad de renderizado
-                particle_priorities.sort(key=lambda x: x[0])
-                visible_indices = [idx for _, idx in particle_priorities]
-
+            # Filtrar partículas visibles (simplemente todas)
+            visible_indices = list(range(len(positions)))
+            
             for idx in visible_indices:
                 pos = positions[idx]
                 p_type = types[idx]
@@ -251,18 +267,12 @@ class SiloRenderer:
                 p_num_sides = int(num_sides_array[idx])
 
                 if p_type == 0:  # CIRCLE
-                    if abs(p_size - self.large_particle_radius) < 1e-6:
-                        color = [0.2, 0.4, 1.0, 0.9]
-                    elif abs(p_size - self.small_particle_radius) < 1e-6:
-                        color = [1.0, 0.5, 0.2, 0.9]
-                    else:
-                        color = [0.5, 0.5, 0.5, 0.9]
-
-                    self._draw_circle_with_border(pos, p_size, color)
+                    color = [0.2, 0.4, 1.0, 0.9]  # Azul para todos los círculos
+                    self._draw_circle_with_border(pos, p_size, color, self.circle_segments)
 
                 elif p_type == 1:  # POLYGON
                     gl.glDisable(gl.GL_POINT_SMOOTH)
-                    color = [0.0, 0.7, 0.3, 0.9]
+                    color = [0.0, 0.7, 0.3, 0.9]  # Verde para polígonos
                     self._draw_polygon_with_border(pos, p_size, p_num_sides, color)
                     gl.glEnable(gl.GL_POINT_SMOOTH)
 
@@ -291,11 +301,16 @@ class SiloRenderer:
         gl.glDisable(gl.GL_BLEND)
 
     def _draw_circle_with_border(self, pos, radius, color, num_segments=50):
-        # Contorno negro más definido usando LINE_LOOP para mayor calidad
-        border_thickness_world_units = 0.0008  # Ajustado para mejor visibilidad sin aumentar tamaño
+        # Ajustar grosor del borde basado en calidad
+        if self.high_quality:
+            border_line_width = 3.0
+            border_thickness_world_units = 0.0006
+        else:
+            border_line_width = 2.0
+            border_thickness_world_units = 0.0008
 
         # Dibujar contorno negro con mayor calidad
-        gl.glLineWidth(2.0)  # Línea más gruesa para mejor definición
+        gl.glLineWidth(border_line_width)
         gl.glColor4f(0, 0, 0, 1.0)  # Negro sólido para mejor contraste
         gl.glBegin(gl.GL_LINE_LOOP)
         for i in range(num_segments):
@@ -305,37 +320,57 @@ class SiloRenderer:
             gl.glVertex2f(x, y)
         gl.glEnd()
 
-        # Dibujar interior de la partícula (sin cambiar el tamaño)
-        gl.glColor4f(*color)
-        gl.glBegin(gl.GL_TRIANGLE_FAN)
-        gl.glVertex2f(pos[0], pos[1])
-        for i in range(num_segments + 1):
-            theta = 2.0 * math.pi * i / num_segments
-            x = pos[0] + radius * math.cos(theta)
-            y = pos[1] + radius * math.sin(theta)
-            gl.glVertex2f(x, y)
-        gl.glEnd()
+        # Dibujar interior de la partícula con gradiente sutil para mayor realismo
+        if self.high_quality:
+            # Renderizado con gradiente para mayor calidad visual
+            center_color = [color[0] * 1.1, color[1] * 1.1, color[2] * 1.1, color[3]]
+            edge_color = [color[0] * 0.8, color[1] * 0.8, color[2] * 0.8, color[3]]
+            
+            # Clamp colors to [0,1]
+            center_color = [min(1.0, max(0.0, c)) for c in center_color]
+            edge_color = [min(1.0, max(0.0, c)) for c in edge_color]
+            
+            gl.glBegin(gl.GL_TRIANGLE_FAN)
+            gl.glColor4f(*center_color)
+            gl.glVertex2f(pos[0], pos[1])
+            gl.glColor4f(*edge_color)
+            for i in range(num_segments + 1):
+                theta = 2.0 * math.pi * i / num_segments
+                x = pos[0] + radius * math.cos(theta)
+                y = pos[1] + radius * math.sin(theta)
+                gl.glVertex2f(x, y)
+            gl.glEnd()
+        else:
+            # Renderizado estándar
+            gl.glColor4f(*color)
+            gl.glBegin(gl.GL_TRIANGLE_FAN)
+            gl.glVertex2f(pos[0], pos[1])
+            for i in range(num_segments + 1):
+                theta = 2.0 * math.pi * i / num_segments
+                x = pos[0] + radius * math.cos(theta)
+                y = pos[1] + radius * math.sin(theta)
+                gl.glVertex2f(x, y)
+            gl.glEnd()
 
     def _draw_polygon_with_border(self, pos, circum_radius, num_sides, color):
         if num_sides < 3:
             return
 
-
         POLYGON_SKIN_RADIUS = 0.005  # Valor del simulador
-
-        # Correcciones basadas en análisis empírico de datos CSV vs física real
-        if num_sides == 3:
-            # Para triángulos: reducción moderada para coincidir con física
-            adjusted_radius = circum_radius * 0.90
-        elif num_sides == 4:
-            # Para cuadrados: reducción leve
-            adjusted_radius = circum_radius * 0.92
-        elif num_sides <= 6:
-            # Para pentágonos y hexágonos: reducción mínima
-            adjusted_radius = circum_radius * 0.95
-        else:
-            # Para polígonos de muchos lados: casi sin reducción
-            adjusted_radius = circum_radius * 0.98
+        adjusted_radius = circum_radius
+        # # Correcciones basadas en análisis empírico de datos CSV vs física real
+        # if num_sides == 3:
+        #     # Para triángulos: reducción moderada para coincidir con física
+        #     adjusted_radius = circum_radius * 0.90
+        # elif num_sides == 4:
+        #     # Para cuadrados: reducción leve
+        #     adjusted_radius = circum_radius * 0.92
+        # elif num_sides <= 6:
+        #     # Para pentágonos y hexágonos: reducción mínima
+        #     adjusted_radius = circum_radius * 0.95
+        # else:
+        #     # Para polígonos de muchos lados: casi sin reducción
+        #     adjusted_radius = circum_radius * 0.98
 
         # Protección contra radios excesivamente pequeños
         min_radius = circum_radius * 0.85  # Mínimo 85% del radio original
@@ -495,7 +530,7 @@ def main():
                        help='Nombre del archivo de video de salida')
     parser.add_argument('--fps', type=int, default=60,
                        help='Cuadros por segundo para el video')
-    parser.add_argument('--base-radius', type=float, default=0.065,
+    parser.add_argument('--base-radius', type=float, default=0.5,
                        help='Radio base de partículas grandes (metros)')
     parser.add_argument('--size-ratio', type=float, default=0.4,
                        help='Radio pequeño/radio grande (0.0-1.0)')
@@ -525,6 +560,10 @@ def main():
                        help='Usar resolución Full HD (1920x1536)')
     parser.add_argument('--4k', action='store_true',
                        help='Usar resolución 4K (3840x3072)')
+    parser.add_argument('--8k', action='store_true',
+                       help='Usar resolución 8K (7680x6144)')
+    parser.add_argument('--high-quality', action='store_true',
+                       help='Habilitar renderizado de alta calidad (antialiasing mejorado, más segmentos)')
     parser.add_argument('--debug', action='store_true',
                        help='Habilitar modo depuración')
 
@@ -540,8 +579,17 @@ def main():
     elif getattr(args, '4k', False):
         args.width, args.height = 3840, 3072
         print("Usando resolución 4K: 3840x3072")
+    elif getattr(args, '8k', False):
+        args.width, args.height = 7680, 6144
+        print("Usando resolución 8K: 7680x6144")
     else:
         print(f"Usando resolución personalizada: {args.width}x{args.height}")
+
+    # Mostrar configuración de calidad
+    if args.high_quality:
+        print("Modo de alta calidad activado: antialiasing mejorado, más segmentos, gradientes")
+    else:
+        print("Modo de calidad estándar")
 
     try:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -627,7 +675,8 @@ def main():
             num_polygon_particles=args.num_polygon_particles,
             silo_height=args.silo_height,
             silo_width=args.silo_width,
-            outlet_width=args.outlet_width
+            outlet_width=args.outlet_width,
+            high_quality=args.high_quality
         )
         renderer.debug_mode = args.debug
 
@@ -642,18 +691,17 @@ def main():
 
         subprocess.run(['find', args.output_dir, '-type', 'f', '-size', '0c', '-delete'], check=False)
 
-        # if len(frames) > 0:
-        #     subprocess.run([
-        #         'ffmpeg', '-y', '-framerate', str(args.fps),
-        #         '-i', f'{args.output_dir}/frame_%05d.png',
-        #         '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-        #         '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
-        #         '-preset', 'slow', '-crf', '18',
-        #         args.video_output
-        #     ], check=True)
-        #     print(f"Video generado: {args.video_output}")
-        # else:
-        #     print("No hay frames para generar video")
+        if len(frames) > 0:
+            subprocess.run([
+                'ffmpeg', '-y', '-framerate', str(args.fps),
+                '-i', f'{args.output_dir}/frame_%05d.png',
+                '-c:v', 'libopenh264', '-pix_fmt', 'yuv420p',
+                '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
+                args.video_output
+            ], check=True)
+            print(f"Video generado: {args.video_output}")
+        else:
+            print("No hay frames para generar video")
 
     except Exception as e:
         print(f"Error: {str(e)}")

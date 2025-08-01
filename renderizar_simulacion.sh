@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script para renderizar simulación basada en parámetros de archivo
-# Uso: ./renderizar_simulacion.sh [archivo_parametros] [duracion_video] [archivo_salida]
+# Uso: ./renderizar_simulacion.sh [archivo_parametros] [duracion_video] [archivo_salida] [resolucion] [calidad]
 
 set -e
 
@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Función para mostrar ayuda
 show_help() {
-    echo "Uso: $0 [archivo_parametros] [duracion_video] [archivo_salida]"
+    echo "Uso: $0 [archivo_parametros] [duracion_video] [archivo_salida] [resolucion] [calidad]"
     echo ""
     echo "Este script renderiza una simulación basada en parámetros de archivo."
     echo ""
@@ -22,12 +22,28 @@ show_help() {
     echo "  archivo_parametros    Archivo con parámetros (por defecto: parametros_ejemplo.txt)"
     echo "  duracion_video       Duración del video en segundos (por defecto: 10)"
     echo "  archivo_salida       Nombre del archivo de video (por defecto: auto-generado)"
+    echo "  resolucion           Resolución del video (por defecto: default)"
+    echo "  calidad              Calidad de renderizado (por defecto: standard)"
+    echo ""
+    echo "Opciones de resolución disponibles:"
+    echo "  hd         - HD (1280x1024)"
+    echo "  full-hd    - Full HD (1920x1536)"
+    echo "  4k         - 4K (3840x3072)"
+    echo "  8k         - 8K (7680x6144)"
+    echo "  default    - Resolución por defecto (1920x2560)"
+    echo "  WIDTHxHEIGHT - Resolución personalizada (ej: 2560x2048)"
+    echo ""
+    echo "Opciones de calidad disponibles:"
+    echo "  standard   - Calidad estándar (más rápido)"
+    echo "  high       - Alta calidad (antialiasing mejorado, partículas más suaves)"
     echo ""
     echo "El script buscará automáticamente la simulación más reciente que coincida"
     echo "con los parámetros especificados en el archivo."
     echo ""
-    echo "Ejemplo:"
-    echo "  $0 simulacion_pequena.txt 15 mi_video.mp4"
+    echo "Ejemplos:"
+    echo "  $0 simulacion_pequena.txt 15 mi_video.mp4 4k high"
+    echo "  $0 parametros.txt 20 video_hd.mp4 full-hd standard"
+    echo "  $0 test.txt 30 ultra.mp4 3840x2160 high"
 }
 
 # Verificar si se pidió ayuda
@@ -40,6 +56,8 @@ fi
 PARAM_FILE="${1:-parametros_ejemplo.txt}"
 VIDEO_DURATION="${2:-10}"
 OUTPUT_FILE="$3"
+RESOLUTION="${4:-default}"
+QUALITY="${5:-standard}"
 
 # Verificar que el archivo de parámetros existe
 if [[ ! -f "$PARAM_FILE" ]]; then
@@ -50,7 +68,11 @@ fi
 echo -e "${BLUE}=== Script de Renderizado de Simulación ===${NC}"
 echo -e "${YELLOW}Archivo de parámetros: $PARAM_FILE${NC}"
 echo -e "${YELLOW}Duración del video: ${VIDEO_DURATION}s${NC}"
+echo -e "${YELLOW}Resolución: $RESOLUTION${NC}"
+echo -e "${YELLOW}Calidad: $QUALITY${NC}"
 echo ""
+
+#rm -r output_frames
 
 # Leer parámetros del archivo
 echo -e "${BLUE}Leyendo parámetros...${NC}"
@@ -162,6 +184,67 @@ fi
 # Construir comando de renderizado
 echo -e "${BLUE}Preparando renderizado...${NC}"
 
+# Configurar resolución
+RESOLUTION_ARGS=""
+case "$RESOLUTION" in
+    "hd")
+        RESOLUTION_ARGS="--hd"
+        echo -e "${YELLOW}Usando resolución HD (1280x1024)${NC}"
+        ;;
+    "full-hd")
+        RESOLUTION_ARGS="--full-hd"
+        echo -e "${YELLOW}Usando resolución Full HD (1920x1536)${NC}"
+        ;;
+    "4k")
+        RESOLUTION_ARGS="--4k"
+        echo -e "${YELLOW}Usando resolución 4K (3840x3072)${NC}"
+        ;;
+    "8k")
+        RESOLUTION_ARGS="--8k"
+        echo -e "${YELLOW}Usando resolución 8K (7680x6144)${NC}"
+        ;;
+    "default")
+        RESOLUTION_ARGS=""
+        echo -e "${YELLOW}Usando resolución por defecto (1920x2560)${NC}"
+        ;;
+    *x*)
+        # Resolución personalizada en formato WIDTHxHEIGHT
+        WIDTH=$(echo "$RESOLUTION" | cut -d'x' -f1)
+        HEIGHT=$(echo "$RESOLUTION" | cut -d'x' -f2)
+        if [[ "$WIDTH" =~ ^[0-9]+$ ]] && [[ "$HEIGHT" =~ ^[0-9]+$ ]]; then
+            RESOLUTION_ARGS="--width $WIDTH --height $HEIGHT"
+            echo -e "${YELLOW}Usando resolución personalizada (${WIDTH}x${HEIGHT})${NC}"
+        else
+            echo -e "${RED}Error: Formato de resolución personalizada inválido: $RESOLUTION${NC}"
+            echo -e "${YELLOW}Use el formato WIDTHxHEIGHT, ejemplo: 2560x2048${NC}"
+            exit 1
+        fi
+        ;;
+    *)
+        echo -e "${RED}Error: Resolución no reconocida: $RESOLUTION${NC}"
+        echo -e "${YELLOW}Opciones válidas: hd, full-hd, 4k, 8k, default, o WIDTHxHEIGHT${NC}"
+        exit 1
+        ;;
+esac
+
+# Configurar calidad
+QUALITY_ARGS=""
+case "$QUALITY" in
+    "standard")
+        QUALITY_ARGS=""
+        echo -e "${YELLOW}Usando calidad estándar${NC}"
+        ;;
+    "high")
+        QUALITY_ARGS="--high-quality"
+        echo -e "${YELLOW}Usando alta calidad (antialiasing mejorado, partículas más suaves)${NC}"
+        ;;
+    *)
+        echo -e "${RED}Error: Calidad no reconocida: $QUALITY${NC}"
+        echo -e "${YELLOW}Opciones válidas: standard, high${NC}"
+        exit 1
+        ;;
+esac
+
 RENDER_CMD="$PYTHON_CMD $RENDER_SCRIPT"
 RENDER_CMD="$RENDER_CMD --target-video-duration $VIDEO_DURATION"
 RENDER_CMD="$RENDER_CMD --video-output $OUTPUT_FILE"
@@ -169,10 +252,21 @@ RENDER_CMD="$RENDER_CMD --data-path $DATA_FILE"
 RENDER_CMD="$RENDER_CMD --total-particles $TOTAL_PARTICLES"
 RENDER_CMD="$RENDER_CMD --num-large-circles $NUM_LARGE_CIRCLES"
 RENDER_CMD="$RENDER_CMD --num-small-circles $NUM_SMALL_CIRCLES"
+RENDER_CMD="$RENDER_CMD --num-polygon-particles $NUM_POLYGON_PARTICLES"
 RENDER_CMD="$RENDER_CMD --base-radius $BASE_RADIUS"
 RENDER_CMD="$RENDER_CMD --silo-height $SILO_HEIGHT"
 RENDER_CMD="$RENDER_CMD --silo-width $SILO_WIDTH"
 RENDER_CMD="$RENDER_CMD --outlet-width $OUTLET_WIDTH"
+
+# Añadir argumentos de resolución
+if [[ -n "$RESOLUTION_ARGS" ]]; then
+    RENDER_CMD="$RENDER_CMD $RESOLUTION_ARGS"
+fi
+
+# Añadir argumentos de calidad
+if [[ -n "$QUALITY_ARGS" ]]; then
+    RENDER_CMD="$RENDER_CMD $QUALITY_ARGS"
+fi
 
 # Agregar tiempo mínimo si está especificado
 if [[ -n "${params[MIN_TIME]}" ]]; then

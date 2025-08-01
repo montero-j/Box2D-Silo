@@ -112,6 +112,8 @@ ARGS=""
 # Mapeo de parámetros a argumentos del programa
 declare -A param_map=(
     ["BASE_RADIUS"]="--base-radius"
+    ["CHI"]="--chi"
+    ["SIZE-RATIO"]="--size-ratio"
     ["TOTAL_PARTICLES"]="--total-particles"
     ["NUM_LARGE_CIRCLES"]="--num-large-circles"
     ["NUM_SMALL_CIRCLES"]="--num-small-circles"
