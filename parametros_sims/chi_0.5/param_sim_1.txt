@@ -5,7 +5,7 @@
 # Parámetros básicos de partículas
 BASE_RADIUS=1.0
 SIZE-RATIO=0.4
-CHI=0.4
+CHI=0.5
 TOTAL_PARTICLES=2000
 NUM_LARGE_CIRCLES=0
 NUM_SMALL_CIRCLES=0
@@ -14,7 +14,7 @@ NUM_SIDES=3
 
 # Parámetros de simulación
 CURRENT_SIM=1
-TOTAL_SIMS=1
+TOTAL_SIMS=50
 SAVE_SIM_DATA=1
 
 # Parámetros adicionales opcionales (descomentarlos si se necesitan)

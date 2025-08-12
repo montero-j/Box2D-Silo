@@ -33,6 +33,7 @@ const float BLOCKAGE_THRESHOLD = 5.0f;
 const float RECORD_INTERVAL = 0.01f;
 const float MIN_AVALANCHE_DURATION = 0.5f;  // Tiempo mínimo de flujo para considerar atasco roto
 const float RAYCAST_COOLDOWN = 0.5f;        // Tiempo mínimo entre raycasts
+const float SHOCK_INTERVAL = 0.1f;          // Intervalo entre impulsos aleatorios
 
 // Parámetros de reinyección configurables
 float REINJECT_HEIGHT_RATIO = 1.0f;        // Fracción de altura para reinyección
@@ -53,6 +54,7 @@ float POLYGON_PERIMETER = 0.0f;
 float simulationTime = 0.0f;
 float lastPrintTime = 0.0f;
 float lastRaycastTime = -RAYCAST_COOLDOWN;  // Tiempo del último raycast
+float lastShockTime = 0.0f;                 // Tiempo del último impulso aleatorio
 int frameCounter = 0;
 
 // Variables para guardado de datos
@@ -106,10 +108,9 @@ float accumulatedOriginalMass = 0.0f;
 int accumulatedOriginalParticles = 0;
 
 // Variables para impulsos
-// float lastShockTime = 0.0f;
 std::mt19937 randomEngine(time(NULL));  // Necesario para shuffle de partículas
-// std::uniform_real_distribution<> angleDistribution(0.0f, 2.0f * M_PI);
-// std::uniform_real_distribution<> impulseMagnitudeDistribution(0.0f, RANDOM_FORCE_MAGNITUDE);
+std::uniform_real_distribution<> angleDistribution(0.0f, 2.0f * M_PI);
+std::uniform_real_distribution<> impulseMagnitudeDistribution(0.0f, 1.0f);
 
 // Estructuras de datos
 enum ParticleShapeType { CIRCLE, POLYGON };
@@ -148,17 +149,17 @@ float RaycastCallback(b2ShapeId shapeId, b2Vec2 point, b2Vec2 normal, float frac
 }
 
 // Función para aplicar impulsos aleatorios
-// void applyRandomImpulses(std::vector<ParticleInfo>& particles) {
-//     if (simulationTime - lastShockTime >= SHOCK_INTERVAL) {
-//         for (const auto& particle : particles) {
-//             float magnitude = impulseMagnitudeDistribution(randomEngine);
-//             float angle = angleDistribution(randomEngine);
-//             b2Vec2 impulse = { magnitude * cos(angle), magnitude * sin(angle) };
-//             b2Body_ApplyLinearImpulseToCenter(particle.bodyId, impulse, true);
-//         }
-//         lastShockTime = simulationTime;
-//     }
-// }
+void applyRandomImpulses(std::vector<ParticleInfo>& particles) {
+    if (simulationTime - lastShockTime >= SHOCK_INTERVAL) {
+        for (const auto& particle : particles) {
+            float magnitude = impulseMagnitudeDistribution(randomEngine) * 0.5f; // Reducir magnitud para evitar efectos demasiado violentos
+            float angle = angleDistribution(randomEngine);
+            b2Vec2 impulse = { magnitude * cos(angle), magnitude * sin(angle) };
+            b2Body_ApplyLinearImpulseToCenter(particle.bodyId, impulse, true);
+        }
+        lastShockTime = simulationTime;
+    }
+}
 
 // Función para manejar partículas que salen del silo
 void manageParticles(b2WorldId worldId, std::vector<b2BodyId>& particleIds,
@@ -223,8 +224,6 @@ void manageParticles(b2WorldId worldId, std::vector<b2BodyId>& particleIds,
             b2Body_SetLinearVelocity(particleId, (b2Vec2){0.0f, 0.0f});
             b2Body_SetAngularVelocity(particleId, 0.0f);
             b2Body_SetAwake(particleId, true);
-
-
         }
     }
 }
@@ -446,7 +445,8 @@ int main(int argc, char* argv[]) {
 
     // Crear directorio de resultados
     std::ostringstream dirNameStream;
-    dirNameStream << "sim_" << TOTAL_PARTICLES
+    dirNameStream << "sim_" << CURRENT_SIMULATION
+                  << "part_" << TOTAL_PARTICLES
                   << "_chi" << std::fixed << std::setprecision(2) << CHI
                   << "_ratio" << std::setprecision(2) << SIZE_RATIO
                   << "_br" << std::setprecision(3) << BASE_RADIUS
@@ -496,7 +496,7 @@ int main(int argc, char* argv[]) {
               << "Altura=" << (silo_height * REINJECT_HEIGHT_RATIO) << "-"
               << (silo_height * (REINJECT_HEIGHT_RATIO + REINJECT_HEIGHT_VARIATION)) << "m\n";
     std::cout << "Duración de simulación: 150 segundos\n";
-    std::cout << "Perturbaciones aleatorias: Deshabilitadas (Goldberg)\n";
+    std::cout << "Perturbaciones aleatorias: Habilitadas (Impulsos cada " << SHOCK_INTERVAL << "s)\n";
     std::cout << "Simulación Actual: " << CURRENT_SIMULATION << " / " << TOTAL_SIMULATIONS << "\n";
     std::cout << "Guardar Datos Detallados: " << (SAVE_SIMULATION_DATA ? "Sí" : "No") << "\n";
     std::cout << "Máximo de reintentos para bloqueos: " << MAX_BLOCKAGE_RETRIES << "\n";
@@ -834,6 +834,9 @@ int main(int argc, char* argv[]) {
         b2World_Step(worldId, TIME_STEP, SUB_STEP_COUNT);
         simulationTime += TIME_STEP;
         frameCounter++;
+
+        // Aplicar impulsos aleatorios cada 0.1 segundos
+        applyRandomImpulses(particles);
 
         // Manejo de partículas y registro de flujo
         manageParticles(worldId, particleBodyIds, simulationTime, lastParticleExitTime, particles,
