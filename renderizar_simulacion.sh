@@ -175,7 +175,7 @@ else
 fi
 
 # Verificar si el script de renderizado existe
-RENDER_SCRIPT="analysis/render_simulation.py"
+RENDER_SCRIPT="analysis/render_simulation_cpu.py"
 if [[ ! -f "$RENDER_SCRIPT" ]]; then
     echo -e "${RED}Error: El script de renderizado no existe: $RENDER_SCRIPT${NC}"
     exit 1
