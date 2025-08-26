@@ -42,7 +42,7 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 fi
 
 # Archivo de parámetros (por defecto parametros_ejemplo.txt)
-PARAM_FILE="${1:-parametros_ejemplo.txt}"
+PARAM_FILE="${1:-parametros_ejemplo_1.txt}"
 
 # Verificar que el archivo de parámetros existe
 if [[ ! -f "$PARAM_FILE" ]]; then

@@ -256,7 +256,7 @@ class SiloRenderer:
         self.fig.canvas.draw()
         img_buffer = self.fig.canvas.buffer_rgba()
         image = Image.frombuffer("RGBA", (self.width, self.height), img_buffer, 'raw', "RGBA", 0, 1)
-        return image.transpose(Image.FLIP_TOP_BOTTOM)
+        return image#image.transpose(Image.FLIP_TOP_BOTTOM)
 
 def load_simulation_data(file_path, min_time=-1.0, max_time=float('inf'), frame_step=1, total_particles=250):
     frames = []

@@ -53,7 +53,7 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 fi
 
 # Parámetros del script
-PARAM_FILE="${1:-parametros_ejemplo.txt}"
+PARAM_FILE="${1:-parametros_ejemplo_2.txt}"
 VIDEO_DURATION="${2:-10}"
 OUTPUT_FILE="$3"
 RESOLUTION="${4:-default}"
@@ -115,7 +115,8 @@ fi
 echo -e "${BLUE}Buscando simulación correspondiente...${NC}"
 
 # Buscar directorios de simulación que coincidan con los parámetros
-SEARCH_PATTERN="*${TOTAL_PARTICLES}*lg${NUM_LARGE_CIRCLES}*sm${NUM_SMALL_CIRCLES}*poly${NUM_POLYGON_PARTICLES}*sides${NUM_SIDES}*br${BASE_RADIUS}*"
+#SEARCH_PATTERN="*${TOTAL_PARTICLES}*lg${NUM_LARGE_CIRCLES}*sm${NUM_SMALL_CIRCLES}*poly${NUM_POLYGON_PARTICLES}*sides${NUM_SIDES}*br${BASE_RADIUS}*"
+SEARCH_PATTERN="*${TOTAL_PARTICLES}*chi${params[CHI]}*ratio${params[SIZE-RATIO]}*br${BASE_RADIUS}*lg${NUM_LARGE_CIRCLES}*sm${NUM_SMALL_CIRCLES}*poly${NUM_POLYGON_PARTICLES}*sides${NUM_SIDES}*outlet${OUTLET_WIDTH}*"
 
 # Buscar en diferentes ubicaciones posibles
 SIMULATION_DIRS=(
