@@ -53,7 +53,7 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 fi
 
 # Parámetros del script
-PARAM_FILE="${1:-parametros_ejemplo_2.txt}"
+PARAM_FILE="${1:-parametros_ejemplo.txt}"
 VIDEO_DURATION="${2:-10}"
 OUTPUT_FILE="$3"
 RESOLUTION="${4:-default}"

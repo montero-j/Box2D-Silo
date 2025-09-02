@@ -317,14 +317,7 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
                   << DETECTION_RANGE << "m)\n";
     }
 
-    if (SAVE_SIMULATION_DATA) {
-        simulationDataFile << ",rays_begin";
-        for (const auto& ray : raycastData.raySegments) {
-            simulationDataFile << "," << ray.first.x << "," << ray.first.y
-                             << "," << ray.second.x << "," << ray.second.y;
-        }
-        simulationDataFile << ",rays_end";
-    }
+
 }
 
 int main(int argc, char* argv[]) {
@@ -469,7 +462,7 @@ int main(int argc, char* argv[]) {
         simulationDataFile.open(outputDir + "simulation_data.csv");
         simulationDataFile << "Time";
         for (int i = 0; i < TOTAL_PARTICLES; ++i) {
-            simulationDataFile << ",p" << i << "_x,p" << i << "_y,p" << i << "_type,p" << i << "_size,p" << i << "_sides";
+        simulationDataFile << ",p" << i << "_x,p" << i << "_y,p" << i << "_type,p" << i << "_size,p" << i << "_sides,p" << i << "_angle";
         }
         simulationDataFile << ",rays_begin";
         for (int i = 0; i < 120; ++i) {
@@ -757,14 +750,12 @@ int main(int argc, char* argv[]) {
             simulationDataFile << std::fixed << std::setprecision(5) << negativeTime;
             for (const auto& particle : particles) {
                 b2Vec2 pos = b2Body_GetPosition(particle.bodyId);
+                float angle = b2Rot_GetAngle(b2Body_GetRotation(particle.bodyId));
                 simulationDataFile << "," << pos.x << "," << pos.y << ","
-                                   << particle.shapeType << "," << particle.size << "," << particle.numSides;
+                                << particle.shapeType << "," << particle.size << ","
+                                << particle.numSides << "," << angle;
             }
-            simulationDataFile << ",rays_begin";
-            for (int i = 0; i < 120; ++i) {
-                simulationDataFile << ",0,0,0,0";
-            }
-            simulationDataFile << ",rays_end\n";
+            simulationDataFile << "\n";
         }
 
         // Verificar estabilización periódicamente
@@ -976,8 +967,10 @@ int main(int argc, char* argv[]) {
             simulationDataFile << std::fixed << std::setprecision(5) << simulationTime;
             for (const auto& particle : particles) {
                 b2Vec2 pos = b2Body_GetPosition(particle.bodyId);
+                float angle = b2Rot_GetAngle(b2Body_GetRotation(particle.bodyId));
                 simulationDataFile << "," << pos.x << "," << pos.y << ","
-                                   << particle.shapeType << "," << particle.size << "," << particle.numSides;
+                                << particle.shapeType << "," << particle.size << ","
+                                << particle.numSides << "," << angle;
             }
             simulationDataFile << "\n";
         }

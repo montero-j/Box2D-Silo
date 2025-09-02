@@ -25,7 +25,7 @@ class SiloRenderer:
             self.particle_border = 3
             self.circle_segments = 100
             self.line_width = 3.0
-            self.dpi = 100  # Aumentar DPI para mejor calidad
+            self.dpi = 100
         else:
             self.particle_scale = 150
             self.min_particle_size = 5
@@ -188,19 +188,21 @@ class SiloRenderer:
             types = particles_data['types']
             sizes = particles_data['sizes']
             num_sides_array = particles_data['num_sides']
+            angles = particles_data['angles']
             
             for idx in range(len(positions)):
                 pos = positions[idx]
                 p_type = types[idx]
                 p_size = sizes[idx]
                 p_num_sides = int(num_sides_array[idx])
+                p_angle = angles[idx]
 
                 if p_type == 0:  # CIRCLE
                     color = [0.2, 0.4, 1.0, 0.9]
                     self._draw_circle_with_border(pos, p_size, color)
                 elif p_type == 1:  # POLYGON
                     color = [0.0, 0.7, 0.3, 0.9]
-                    self._draw_polygon_with_border(pos, p_size, p_num_sides, color)
+                    self._draw_polygon_with_border(pos, p_size, p_num_sides, p_angle, color)
 
         except Exception as e:
             print(f"Error dibujando partículas: {str(e)}")
@@ -215,33 +217,26 @@ class SiloRenderer:
                          color='red', linewidth=1.0, alpha=0.3, zorder=1)
 
     def _draw_circle_with_border(self, pos, radius, color):
-        # Dibujar borde negro (círculo más grande)
         border_thickness_ratio = 0.05 if self.high_quality else 0.08
         border_radius = radius * (1 + border_thickness_ratio)
         border_circle = patches.Circle(pos, border_radius, facecolor='black', zorder=1)
         self.ax.add_patch(border_circle)
 
-        # Dibujar interior de la partícula
-        if self.high_quality:
-            # Matplotlib no tiene gradientes nativos para parches. Podemos simular con un gradiente
-            # o simplemente usar un color más claro para el centro.
-            # Aquí, solo usaremos el color principal para simplificar y mantener la consistencia.
-            pass
-        
-        # Dibujar círculo interior
         circle = patches.Circle(pos, radius, facecolor=color, edgecolor=None, zorder=2)
         self.ax.add_patch(circle)
 
-    def _draw_polygon_with_border(self, pos, circum_radius, num_sides, color):
+    def _draw_polygon_with_border(self, pos, circum_radius, num_sides, angle, color):
         if num_sides < 3:
             return
         
         # Calcular los vértices del polígono
         vertices = []
         for i in range(num_sides):
-            angle = 2.0 * math.pi * i / num_sides
-            x = pos[0] + circum_radius * math.cos(angle)
-            y = pos[1] + circum_radius * math.sin(angle)
+            # Se agrega el ángulo de la partícula al cálculo de cada vértice
+            # Esto rota el polígono completo
+            vertex_angle = 2.0 * math.pi * i / num_sides + angle
+            x = pos[0] + circum_radius * math.cos(vertex_angle)
+            y = pos[1] + circum_radius * math.sin(vertex_angle)
             vertices.append((x, y))
 
         # Dibujar el polígono interior
@@ -256,24 +251,26 @@ class SiloRenderer:
         self.fig.canvas.draw()
         img_buffer = self.fig.canvas.buffer_rgba()
         image = Image.frombuffer("RGBA", (self.width, self.height), img_buffer, 'raw', "RGBA", 0, 1)
-        return image#image.transpose(Image.FLIP_TOP_BOTTOM)
+        return image
 
 def load_simulation_data(file_path, min_time=-1.0, max_time=float('inf'), frame_step=1, total_particles=250):
+    import re
     frames = []
     frame_count = 0
 
     with open(file_path, 'r') as f:
-        header_skipped = False
-        
-        for line in f:
-            if not header_skipped:
-                header_skipped = True
-                continue
+        # Leer header y detectar cuántas partículas hay en el header (si aparece p{n}_x)
+        header_line = f.readline()
+        header_parts = header_line.strip().split(',')
+        indices = [int(m.group(1)) for part in header_parts for m in [re.search(r"p(\d+)_x", part)] if m]
+        header_particle_count = (max(indices) + 1) if indices else total_particles
 
+        for line in f:
             parts = line.strip().split(',')
             if not parts:
                 continue
 
+            # primer campo = tiempo
             try:
                 current_time = float(parts[0])
             except ValueError:
@@ -288,48 +285,70 @@ def load_simulation_data(file_path, min_time=-1.0, max_time=float('inf'), frame_
                 frame_count += 1
                 continue
 
+            # detectar si hay bloques de rayos en la línea
+            has_rays = ("rays_begin" in parts and "rays_end" in parts)
+            if has_rays:
+                rays_begin_idx = parts.index("rays_begin")
+                rays_end_idx = parts.index("rays_end")
+                fields_before_rays = rays_begin_idx
+            else:
+                rays_begin_idx = rays_end_idx = None
+                fields_before_rays = len(parts)
+
+            # intentar inferir cuántos campos por partícula tiene ESTA línea
+            per_particle = None
+            if header_particle_count > 0 and (fields_before_rays - 1) % header_particle_count == 0:
+                per_particle = (fields_before_rays - 1) // header_particle_count
+            else:
+                # fallback: probar 6 (x,y,type,size,sides,angle) o 5 (sin angle)
+                if (fields_before_rays - 1) % 6 == 0:
+                    per_particle = 6
+                    header_particle_count = (fields_before_rays - 1) // 6
+                elif (fields_before_rays - 1) % 5 == 0:
+                    per_particle = 5
+                    header_particle_count = (fields_before_rays - 1) // 5
+                else:
+                    per_particle = 6  # por defecto
+
+            # parsear partículas según per_particle detectado
             particle_positions = []
             particle_types = []
             particle_sizes = []
             particle_num_sides = []
-            rays = []
+            particle_angles = []
 
-            particle_data_end = 1 + total_particles * 5
-            for i in range(1, particle_data_end, 5):
-                if i + 4 >= len(parts):
+            for p in range(header_particle_count):
+                base = 1 + p * per_particle
+                if base + (per_particle - 1) >= fields_before_rays:
+                    break
+                try:
+                    x = float(parts[base])
+                    y = float(parts[base + 1])
+                except (ValueError, IndexError):
                     break
 
-                try:
-                    x = float(parts[i])
-                    y = float(parts[i+1])
-                    p_type = int(float(parts[i+2]))
-                    size = float(parts[i+3])
-                    sides = int(float(parts[i+4]))
-                except (ValueError, IndexError):
-                    continue
-                
+                p_type = int(float(parts[base + 2])) if per_particle >= 3 else 0
+                size = float(parts[base + 3]) if per_particle >= 4 else 0.0
+                sides = int(float(parts[base + 4])) if per_particle >= 5 else 0
+                angle = float(parts[base + 5]) if per_particle >= 6 else 0.0
+
                 particle_positions.append([x, y])
                 particle_types.append(p_type)
                 particle_sizes.append(size)
                 particle_num_sides.append(sides)
+                particle_angles.append(angle)
 
-            if "rays_begin" in parts:
-                try:
-                    rays_begin_idx = parts.index("rays_begin")
-                    rays_end_idx = parts.index("rays_end")
-                    ray_data = parts[rays_begin_idx+1:rays_end_idx]
-
-                    for i in range(0, len(ray_data), 4):
-                        try:
-                            x1 = float(ray_data[i])
-                            y1 = float(ray_data[i+1])
-                            x2 = float(ray_data[i+2])
-                            y2 = float(ray_data[i+3])
-                            rays.append([[x1, y1], [x2, y2]])
-                        except (ValueError, IndexError):
-                            continue
-                except ValueError:
-                    pass
+            # parsear rayos si existen
+            rays = []
+            if has_rays and (rays_end_idx > rays_begin_idx + 1):
+                ray_data = parts[rays_begin_idx + 1:rays_end_idx]
+                for i in range(0, len(ray_data), 4):
+                    try:
+                        x1 = float(ray_data[i]); y1 = float(ray_data[i + 1])
+                        x2 = float(ray_data[i + 2]); y2 = float(ray_data[i + 3])
+                        rays.append([[x1, y1], [x2, y2]])
+                    except (ValueError, IndexError):
+                        continue
 
             if particle_positions or rays:
                 frame_data = {
@@ -338,15 +357,17 @@ def load_simulation_data(file_path, min_time=-1.0, max_time=float('inf'), frame_
                         'positions': np.array(particle_positions, dtype=np.float32),
                         'types': np.array(particle_types, dtype=np.int32),
                         'sizes': np.array(particle_sizes, dtype=np.float32),
-                        'num_sides': np.array(particle_num_sides, dtype=np.int32)
+                        'num_sides': np.array(particle_num_sides, dtype=np.int32),
+                        'angles': np.array(particle_angles, dtype=np.float32)
                     },
                     'rays': rays
                 }
                 frames.append(frame_data)
-            
+
             frame_count += 1
 
     return frames
+
 
 def main():
     parser = argparse.ArgumentParser(description="Renderizador de simulación de silo con visualización de rayos")
