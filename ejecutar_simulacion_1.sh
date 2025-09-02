@@ -94,15 +94,15 @@ else
 fi
 
 # Compilar el simulador
-echo ""
-echo -e "${BLUE}Compilando silo_simulator...${NC}"
-make clean > /dev/null 2>&1 || true  # Limpiar compilaciones anteriores (ignorar errores)
-if make; then
-    echo -e "${GREEN}Compilación exitosa.${NC}"
-else
-    echo -e "${RED}Error en la compilación.${NC}"
-    exit 1
-fi
+# echo ""
+# echo -e "${BLUE}Compilando silo_simulator...${NC}"
+# make clean > /dev/null 2>&1 || true  # Limpiar compilaciones anteriores (ignorar errores)
+# if make; then
+#     echo -e "${GREEN}Compilación exitosa.${NC}"
+# else
+#     echo -e "${RED}Error en la compilación.${NC}"
+#     exit 1
+# fi
 
 # Construir argumentos para silo_simulator
 echo ""
