@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import cupy as cp
 import numpy as np
 import OpenGL.GL as gl
@@ -10,6 +11,7 @@ import subprocess
 from tqdm import tqdm
 import traceback
 import math
+import re
 
 class SiloRenderer:
     def __init__(self, width=1920, height=2560,
@@ -65,9 +67,16 @@ class SiloRenderer:
             glut.glutInitDisplayMode(display_mode)
             glut.glutInitWindowSize(self.width, self.height)
             if hasattr(self, 'window') and self.window:
-                glut.glutDestroyWindow(self.window)
+                try:
+                    glut.glutDestroyWindow(self.window)
+                except:
+                    pass
+            # Crear ventana (oculta después)
             self.window = glut.glutCreateWindow(b"Silo Simulation")
-            glut.glutHideWindow()
+            try:
+                glut.glutHideWindow()
+            except:
+                pass
 
             self.framebuffer = gl.glGenFramebuffers(1)
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffer)
@@ -248,10 +257,17 @@ class SiloRenderer:
 
     def _draw_particles(self, particles_data):
         try:
+            # obtener arrays desde cupy a numpy para dibujar con PyOpenGL
             positions = particles_data['positions'].get()
             types = particles_data['types'].get()
             sizes = particles_data['sizes'].get()
             num_sides_array = particles_data['num_sides'].get()
+            angles = particles_data.get('angles', None)
+            if angles is not None:
+                angles = angles.get()
+            else:
+                # si por alguna razón no existe, crear ceros
+                angles = np.zeros(len(positions), dtype=np.float32)
 
             gl.glEnable(gl.GL_BLEND)
             gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
@@ -265,6 +281,7 @@ class SiloRenderer:
                 p_type = types[idx]
                 p_size = sizes[idx]
                 p_num_sides = int(num_sides_array[idx])
+                p_angle = float(angles[idx]) if idx < len(angles) else 0.0
 
                 if p_type == 0:  # CIRCLE
                     color = [0.2, 0.4, 1.0, 0.9]  # Azul para todos los círculos
@@ -273,7 +290,7 @@ class SiloRenderer:
                 elif p_type == 1:  # POLYGON
                     gl.glDisable(gl.GL_POINT_SMOOTH)
                     color = [0.0, 0.7, 0.3, 0.9]  # Verde para polígonos
-                    self._draw_polygon_with_border(pos, p_size, p_num_sides, color)
+                    self._draw_polygon_with_border(pos, p_size, p_num_sides, p_angle, color)
                     gl.glEnable(gl.GL_POINT_SMOOTH)
 
         except Exception as e:
@@ -352,25 +369,12 @@ class SiloRenderer:
                 gl.glVertex2f(x, y)
             gl.glEnd()
 
-    def _draw_polygon_with_border(self, pos, circum_radius, num_sides, color):
+    def _draw_polygon_with_border(self, pos, circum_radius, num_sides, angle, color):
         if num_sides < 3:
             return
 
         POLYGON_SKIN_RADIUS = 0.005  # Valor del simulador
         adjusted_radius = circum_radius
-        # # Correcciones basadas en análisis empírico de datos CSV vs física real
-        # if num_sides == 3:
-        #     # Para triángulos: reducción moderada para coincidir con física
-        #     adjusted_radius = circum_radius * 0.90
-        # elif num_sides == 4:
-        #     # Para cuadrados: reducción leve
-        #     adjusted_radius = circum_radius * 0.92
-        # elif num_sides <= 6:
-        #     # Para pentágonos y hexágonos: reducción mínima
-        #     adjusted_radius = circum_radius * 0.95
-        # else:
-        #     # Para polígonos de muchos lados: casi sin reducción
-        #     adjusted_radius = circum_radius * 0.98
 
         # Protección contra radios excesivamente pequeños
         min_radius = circum_radius * 0.85  # Mínimo 85% del radio original
@@ -381,9 +385,9 @@ class SiloRenderer:
         gl.glColor4f(0, 0, 0, 1.0)  # Negro sólido
         gl.glBegin(gl.GL_LINE_LOOP)
         for i in range(num_sides):
-            angle = 2.0 * math.pi * i / num_sides
-            x = pos[0] + adjusted_radius * math.cos(angle)
-            y = pos[1] + adjusted_radius * math.sin(angle)
+            vertex_angle = 2.0 * math.pi * i / num_sides + angle
+            x = pos[0] + adjusted_radius * math.cos(vertex_angle)
+            y = pos[1] + adjusted_radius * math.sin(vertex_angle)
             gl.glVertex2f(x, y)
         gl.glEnd()
 
@@ -392,9 +396,9 @@ class SiloRenderer:
         gl.glBegin(gl.GL_TRIANGLE_FAN)
         gl.glVertex2f(pos[0], pos[1])
         for i in range(num_sides + 1):
-            angle = 2.0 * math.pi * i / num_sides
-            x = pos[0] + adjusted_radius * math.cos(angle)
-            y = pos[1] + adjusted_radius * math.sin(angle)
+            vertex_angle = 2.0 * math.pi * i / num_sides + angle
+            x = pos[0] + adjusted_radius * math.cos(vertex_angle)
+            y = pos[1] + adjusted_radius * math.sin(vertex_angle)
             gl.glVertex2f(x, y)
         gl.glEnd()
 
@@ -424,22 +428,29 @@ class SiloRenderer:
         image = Image.frombytes("RGBA", (self.width, self.height), data)
         return image.transpose(Image.FLIP_TOP_BOTTOM)
 
+
 def load_simulation_data(file_path, min_time=-1.0, max_time=float('inf'), frame_step=1, total_particles=250):
+    """
+    Lectura robusta del CSV: detecta si el header indica p{n}_x, y usa eso como cantidad de partículas.
+    Soporta líneas con 5 campos por partícula (x,y,type,size,sides) o 6 (x,y,type,size,sides,angle).
+    Retorna frames con arrays en cupy para posiciones, types, sizes, num_sides, angles (si aparecen).
+    """
     frames = []
     frame_count = 0
 
     with open(file_path, 'r') as f:
-        header_skipped = False
+        # Leer header y detectar cuántas partículas hay en el header (si aparece p{n}_x)
+        header_line = f.readline()
+        header_parts = header_line.strip().split(',')
+        indices = [int(m.group(1)) for part in header_parts for m in [re.search(r"p(\d+)_x", part)] if m]
+        header_particle_count = (max(indices) + 1) if indices else total_particles
 
         for line in f:
-            if not header_skipped:
-                header_skipped = True
-                continue
-
             parts = line.strip().split(',')
             if not parts:
                 continue
 
+            # primer campo = tiempo
             try:
                 current_time = float(parts[0])
             except ValueError:
@@ -454,54 +465,81 @@ def load_simulation_data(file_path, min_time=-1.0, max_time=float('inf'), frame_
                 frame_count += 1
                 continue
 
+            # detectar si hay bloques de rayos en la línea
+            has_rays = ("rays_begin" in parts and "rays_end" in parts)
+            if has_rays:
+                rays_begin_idx = parts.index("rays_begin")
+                rays_end_idx = parts.index("rays_end")
+                fields_before_rays = rays_begin_idx
+            else:
+                rays_begin_idx = rays_end_idx = None
+                fields_before_rays = len(parts)
+
+            # intentar inferir cuántos campos por partícula tiene ESTA línea
+            per_particle = None
+            if header_particle_count > 0 and (fields_before_rays - 1) % header_particle_count == 0:
+                per_particle = (fields_before_rays - 1) // header_particle_count
+            else:
+                # fallback: probar 6 (x,y,type,size,sides,angle) o 5 (sin angle)
+                if (fields_before_rays - 1) % 6 == 0:
+                    per_particle = 6
+                    header_particle_count = (fields_before_rays - 1) // 6
+                elif (fields_before_rays - 1) % 5 == 0:
+                    per_particle = 5
+                    header_particle_count = (fields_before_rays - 1) // 5
+                else:
+                    per_particle = 6  # por defecto
+
+            # parsear partículas según per_particle detectado
             particle_positions = []
             particle_types = []
             particle_sizes = []
             particle_num_sides = []
-            rays = []
+            particle_angles = []
 
-            particle_data_end = 1 + total_particles * 5
-            for i in range(1, particle_data_end, 5):
-                if i + 4 >= len(parts):
+            for p in range(header_particle_count):
+                base = 1 + p * per_particle
+                if base + (per_particle - 1) >= fields_before_rays:
+                    break
+                try:
+                    x = float(parts[base])
+                    y = float(parts[base + 1])
+                except (ValueError, IndexError):
                     break
 
-                try:
-                    x = float(parts[i])
-                    y = float(parts[i+1])
-                    p_type = int(float(parts[i+2]))
-                    size = float(parts[i+3])
-                    sides = int(float(parts[i+4]))
-                except (ValueError, IndexError):
-                    continue
+                p_type = int(float(parts[base + 2])) if per_particle >= 3 else 0
+                size = float(parts[base + 3]) if per_particle >= 4 else 0.0
+                sides = int(float(parts[base + 4])) if per_particle >= 5 else 0
+                angle = float(parts[base + 5]) if per_particle >= 6 else 0.0
 
                 particle_positions.append([x, y])
                 particle_types.append(p_type)
                 particle_sizes.append(size)
                 particle_num_sides.append(sides)
+                particle_angles.append(angle)
 
-            if "rays_begin" in parts:
-                rays_begin_idx = parts.index("rays_begin")
-                rays_end_idx = parts.index("rays_end")
-                ray_data = parts[rays_begin_idx+1:rays_end_idx]
-
+            # parsear rayos si existen
+            rays = []
+            if has_rays and (rays_end_idx > rays_begin_idx + 1):
+                ray_data = parts[rays_begin_idx + 1:rays_end_idx]
                 for i in range(0, len(ray_data), 4):
                     try:
-                        x1 = float(ray_data[i])
-                        y1 = float(ray_data[i+1])
-                        x2 = float(ray_data[i+2])
-                        y2 = float(ray_data[i+3])
+                        x1 = float(ray_data[i]); y1 = float(ray_data[i + 1])
+                        x2 = float(ray_data[i + 2]); y2 = float(ray_data[i + 3])
                         rays.append([[x1, y1], [x2, y2]])
                     except (ValueError, IndexError):
                         continue
 
             if particle_positions or rays:
+                # pasar a cupy arrays
                 frame_data = {
                     'time': current_time,
                     'particles': {
                         'positions': cp.array(particle_positions, dtype=cp.float32),
                         'types': cp.array(particle_types, dtype=cp.int32),
                         'sizes': cp.array(particle_sizes, dtype=cp.float32),
-                        'num_sides': cp.array(particle_num_sides, dtype=cp.int32)
+                        'num_sides': cp.array(particle_num_sides, dtype=cp.int32),
+                        'angles': cp.array(particle_angles, dtype=cp.float32)
                     },
                     'rays': rays
                 }
@@ -511,9 +549,9 @@ def load_simulation_data(file_path, min_time=-1.0, max_time=float('inf'), frame_
 
     return frames
 
-def main():
-    parser = argparse.ArgumentParser(description="Renderizador de simulación de silo con visualización de rayos")
 
+def main():
+    parser = argparse.ArgumentParser(description="Renderizador GPU de simulación de silo con visualización de rayos")
     parser.add_argument('--min-time', type=float, default=-1.0,
                        help='Tiempo inicial a renderizar (segundos, usar -1.0 para incluir sacudida)')
     parser.add_argument('--max-time', type=float, default=float('inf'),
@@ -569,7 +607,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Configurar resolución según las opciones preestablecidas
     if args.hd:
         args.width, args.height = 1280, 1024
         print("Usando resolución HD: 1280x1024")
@@ -585,9 +622,8 @@ def main():
     else:
         print(f"Usando resolución personalizada: {args.width}x{args.height}")
 
-    # Mostrar configuración de calidad
     if args.high_quality:
-        print("Modo de alta calidad activado: antialiasing mejorado, más segmentos, gradientes")
+        print("Modo de alta calidad activado: antialiasing mejorado, más segmentos")
     else:
         print("Modo de calidad estándar")
 
@@ -595,9 +631,7 @@ def main():
         os.makedirs(args.output_dir, exist_ok=True)
         print(f"Cargando datos entre {args.min_time}s y {args.max_time}s...")
 
-        # Calcular frame_step automáticamente si se especifica target_video_duration
         if args.target_video_duration is not None:
-            # Primero necesitamos contar cuántos frames hay en total
             total_frames = 0
             sim_start_time = None
             sim_end_time = None
