@@ -729,7 +729,7 @@ def main():
             subprocess.run([
                 'ffmpeg', '-y', '-framerate', str(args.fps),
                 '-i', f'{args.output_dir}/frame_%05d.png',
-                '-c:v', 'libopenh264', '-pix_fmt', 'yuv420p',
+                '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
                 '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2',
                 args.video_output
             ], check=True)

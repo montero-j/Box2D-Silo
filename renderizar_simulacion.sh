@@ -53,8 +53,8 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 fi
 
 # Parámetros del script
-PARAM_FILE="${1:-parametros_ejemplo.txt}"
-VIDEO_DURATION="${2:-10}"
+PARAM_FILE="${1:-parametros_ejemplo_2.txt}"
+VIDEO_DURATION="${2:-162}"
 OUTPUT_FILE="$3"
 RESOLUTION="${4:-default}"
 QUALITY="${5:-standard}"
@@ -176,7 +176,7 @@ else
 fi
 
 # Verificar si el script de renderizado existe
-RENDER_SCRIPT="analysis/render_simulation_cpu.py"
+RENDER_SCRIPT="analysis/render_simulation.py"
 if [[ ! -f "$RENDER_SCRIPT" ]]; then
     echo -e "${RED}Error: El script de renderizado no existe: $RENDER_SCRIPT${NC}"
     exit 1
