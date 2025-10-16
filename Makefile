@@ -1,72 +1,72 @@
-# Configuración
-CXX := g++
-CXXFLAGS := -std=c++17 -O3 -Wall -Wno-unused-variable
-BOX2D_INCLUDE_DIR := box2d/include
-BOX2D_LIB_DIR := box2d/build/src
-BOX2D_INC := -I$(BOX2D_INCLUDE_DIR)
-BOX2D_LIB := -L$(BOX2D_LIB_DIR) -lbox2d
-SRC_DIR := src
-BUILD_DIR := build
-BIN_DIR := bin
+# Nombre del ejecutable final
+TARGET = ./bin/silo_simulator
 
-# Archivos fuente
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
-TARGET := $(BIN_DIR)/silo_simulator
+# Carpeta de salida para el ejecutable y archivos objeto
+BIN_DIR = bin
+OBJ_DIR = obj
 
-# Regla principal
+# Directorios de fuentes y cabeceras de tu proyecto
+INC_DIR = include
+SRC_DIR = src
+
+# Compilador a usar
+CXX = g++
+
+# 1. Rutas de Archivos
+# ----------------------------------------------------------------------------------
+# Obtener todos los archivos .cpp de la carpeta src/
+SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
+# Generar archivos objeto en la carpeta obj/
+OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
+# Archivos de dependencia (.d)
+DEPS = $(OBJECTS:.o=.d)
+
+# 2. Configuración de Box2D (Rutas Encontradas en tu 'listado.txt')
+# ----------------------------------------------------------------------------------
+# RUTA EXACTA del directorio que contiene libbox2d.a (es 'box2d/lib/')
+BOX2D_LIB_DIR = box2d/build/src/
+
+# Rutas de búsqueda de librerías (-L) y enlace a la librería (-lbox2d)
+BOX2D_LDFLAGS = -L$(BOX2D_LIB_DIR) -lbox2d 
+
+# 3. Banderas de Compilación y Enlace
+# ----------------------------------------------------------------------------------
+# CXXFLAGS:
+# -I$(INC_DIR): Busca tus headers locales (include/)
+# -Ibox2d/include: Busca la carpeta 'include' dentro de 'box2d' para encontrar box2d/box2d.h
+CXXFLAGS = -std=c++17 -O3 -Wall -MMD -I$(INC_DIR) -Ibox2d/include
+
+# LDFLAGS:
+LDFLAGS = $(BOX2D_LDFLAGS)
+
+# ==================================================================================
+# REGLAS DE COMPILACIÓN
+# ==================================================================================
+
+.PHONY: all clean
+
+# Regla Principal: construye el ejecutable en bin/
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
-	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(BOX2D_LIB)
+$(TARGET): $(OBJECTS)
+	@mkdir -p $(BIN_DIR)
+	@echo "Enlazando módulos para crear el ejecutable: $(TARGET)"
+	$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
+	@echo "Compilación exitosa! 🚀"
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(BOX2D_INC) -c $< -o $@
+# Regla para compilar cada archivo fuente en un archivo objeto
+# Se compila src/X.cpp para generar obj/X.o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
+	@echo "Compilando $<..."
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Nueva regla para ejecutar simulación específica
-run-specific:
-	@if [ -z "$(R)" ] || [ -z "$(CHI)" ]; then \
-		echo "Usage: make run-specific R=<ratio> CHI=<chi>"; \
-		exit 1; \
-	fi
-	./scripts/run_specific_simulation.sh $(R) $(CHI)
-
-# Estudio completo de forma
-study-%: $(TARGET)
-	@echo "Ejecutando estudio de $*..."
-	@python3 scripts/run_shape_study.py $* --target 100 --time 60
-
-# Limpiar datos
-clean-data:
-	@echo "Limpiando datos de simulaciones..."
-	@rm -rf data/simulations/sim_* data/shape_study_results_*
-	@rm -rf simulations/
-	@echo "Datos limpiados (estructura de directorios preservada)"
-
-# Limpiar datos temporales
-clean-temp:
-	@echo "Limpiando datos temporales..."
-	@rm -rf simulations/
-	@echo "Datos temporales limpiados"
-
-# Limpiar todo
-clean-all: clean clean-data
-
-# Instalación de dependencias Python
-install-deps:
-	@echo "Instalando dependencias Python..."
-	@pip3 install pandas numpy matplotlib opencv-python
-
-# Verificar setup
-verify:
-	@echo "Verificando setup del proyecto..."
-	@python3 -c "import pandas, numpy, matplotlib; print('Python dependencies OK')"
-	@[ -f bin/silo_simulator ] && echo "Simulador compilado" || echo "Falta compilar simulador"
-	@echo "Verificación completada"
-
+# Regla para limpiar todos los archivos generados
 clean:
-	rm -rf $(BUILD_DIR) $(BIN_DIR)
+	@echo "Limpiando archivos de compilación..."
+	rm -rf $(TARGET) $(OBJECTS) $(DEPS) $(OBJ_DIR) $(BIN_DIR)
+	rm -rf ./simulations # Opcional: limpiar directorio de resultados
+	@echo "Limpieza completada."
 
-.PHONY: all clean run-specific study-% clean-data clean-temp clean-all install-deps verify
+# Incluir archivos de dependencia generados automáticamente (para recompilación inteligente)
+-include $(DEPS)
