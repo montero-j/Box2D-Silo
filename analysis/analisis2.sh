@@ -39,81 +39,76 @@ for DIR_NAME in "$BASE_DIR"/*/; do
         fi
 
         # Procesar flow_data.csv con AWK para detectar avalanchas - VERSIÓN CORREGIDA
+                # Procesar flow_data.csv con AWK para detectar avalanchas - VERSIÓN MEJORADA
         AWK_RESULTS=$(awk -F',' '
         BEGIN {
-            jam_threshold = 5.0  # segundos sin cambio para considerar atasco
+            jam_threshold = 5.0
             first_line = 1
-            in_jam = 1  # empezamos asumiendo que hay atasco (antes del primer flujo)
-            last_avalanche_start = 0
-            current_avalanche_particles = 0
+            in_avalanche = 0
+            avalanche_start_original = 0
+            last_activity_time = 0
             total_avalanches = 0
             total_particles = 0
         }
         NR==1 {next}  # saltar encabezado
-        
+
         {
             time = $1
-            nop_total = $4        # columna NoPTotal (CORRECTO)
-            nop_original = $8     # columna NoPOriginalTotal (CORRECTO)
+            nop_total = $4
+            nop_original = $8
             
             if (first_line == 1) {
-                prev_time = time
+                # Inicializar con primera línea de datos
                 prev_nop_total = nop_total
                 prev_nop_original = nop_original
+                last_activity_time = time
                 first_line = 0
                 next
             }
 
-            # Calcular tiempo transcurrido desde la última medición
-            delta_time = time - prev_time
-
-            # Detectar si hay cambio en el número total de partículas
-            if (nop_total != prev_nop_total) {
-                # HAY FLUJO - no estamos en atasco
-                if (in_jam == 1) {
-                    # SALIMOS DE UN ATASCO - inicio de nueva avalancha
-                    in_jam = 0
-                    last_avalanche_start = nop_original
-                    stable_duration = 0
-                }
-                # Actualizar contadores
-                prev_nop_total = nop_total
-                stable_duration = 0
-            } else {
-                # NO HAY CAMBIO - acumular tiempo estable
-                stable_duration += delta_time
+            # Detectar actividad (cambio en NoPTotal)
+            has_activity = (nop_total != prev_nop_total)
+            
+            if (has_activity) {
+                last_activity_time = time
                 
-                # Verificar si alcanzamos el umbral de atasco
-                if (stable_duration >= jam_threshold && in_jam == 0) {
-                    # ENTRAMOS EN ATASCO - fin de avalancha actual
-                    in_jam = 1
-                    avalanche_size = nop_original - last_avalanche_start
-                    
-                    if (avalanche_size > 0) {
-                        total_avalanches++
-                        total_particles += avalanche_size
-                    }
+                # Si no hay avalancha en curso, iniciar una nueva
+                if (!in_avalanche) {
+                    in_avalanche = 1
+                    avalanche_start_original = prev_nop_original
                 }
             }
 
-            prev_time = time
+            # Verificar condición de fin de avalancha
+            time_since_activity = time - last_activity_time
+            
+            if (in_avalanche && time_since_activity >= jam_threshold) {
+                # Fin de avalancha
+                avalanche_size = nop_original - avalanche_start_original
+                
+                if (avalanche_size >= 0) {  # Permitir tamaño 0
+                    total_avalanches++
+                    total_particles += avalanche_size
+                }
+                
+                in_avalanche = 0
+            }
+
+            # Actualizar valores anteriores
+            prev_nop_total = nop_total
             prev_nop_original = nop_original
         }
         END {
-            # Contar la última avalancha si terminamos en flujo (no en atasco)
-            if (in_jam == 0 && nop_original > last_avalanche_start) {
-                avalanche_size = nop_original - last_avalanche_start
-                if (avalanche_size > 0) {
+            # Procesar última avalancha si aún está activa
+            if (in_avalanche) {
+                avalanche_size = nop_original - avalanche_start_original
+                if (avalanche_size >= 0) {
                     total_avalanches++
                     total_particles += avalanche_size
                 }
             }
             
-            if (total_avalanches > 0) {
-                avg_size = total_particles / total_avalanches
-            } else {
-                avg_size = 0
-            }
+            # Imprimir resultados
             printf "%.5f,%d", total_particles, total_avalanches
         }' "$FULL_PATH")
 
