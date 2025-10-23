@@ -14,7 +14,7 @@ NUM_SIDES=0.000
 # Parámetros de simulación
 CURRENT_SIM=6
 TOTAL_SIMS=5
-SAVE_SIM_DATA=0
+SAVE_SIM_DATA=1
 
 # Parámetros adicionales opcionales (descomentarlos si se necesitan)
 SILO_HEIGHT=135.0

@@ -211,7 +211,7 @@ bool calculateDerivedParameters() {
     // =========================================================================
 
 
-    if (CURRENT_SIMULATION > 5) {
+    if (CURRENT_SIMULATION > 10) {
         SAVE_SIMULATION_DATA = false;
     }
 

@@ -131,14 +131,15 @@ void applyRandomImpulses() {
 
 void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
                      int& exitedTotalCount, float& exitedTotalMass,
-                     int& exitedOriginalCount, float& exitedOriginalMass) {
-    // Extraído de silo-simulation.cpp
+                     int& exitedOriginalCount, float& exitedOriginalMass)
+{
     const float EXIT_BELOW_Y = -1.5f;
-    const float OUTLET_LEFT_X = -OUTLET_X_HALF_WIDTH;
-    const float OUTLET_RIGHT_X = OUTLET_X_HALF_WIDTH;
+    const float OUTLET_LEFT_X  = -OUTLET_X_HALF_WIDTH;
+    const float OUTLET_RIGHT_X =  OUTLET_X_HALF_WIDTH;
+
     const float REINJECT_HALF_WIDTH = SILO_WIDTH * REINJECT_WIDTH_RATIO * 0.5f;
     const float REINJECT_MIN_X = -REINJECT_HALF_WIDTH;
-    const float REINJECT_MAX_X = REINJECT_HALF_WIDTH;
+    const float REINJECT_MAX_X =  REINJECT_HALF_WIDTH;
     const float REINJECT_MIN_Y = siloHeight * REINJECT_HEIGHT_RATIO;
     const float REINJECT_MAX_Y = siloHeight * (REINJECT_HEIGHT_RATIO + REINJECT_HEIGHT_VARIATION);
 
@@ -151,22 +152,17 @@ void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
         b2BodyId particleId = particleBodyIds[i];
         b2Vec2 pos = b2Body_GetPosition(particleId);
 
+        // Salida por la abertura -> contar SIEMPRE (tránsitos)
         if (pos.y < EXIT_BELOW_Y && pos.x >= OUTLET_LEFT_X && pos.x <= OUTLET_RIGHT_X) {
-            bool alreadyCountedInAvalanche = (particlesExitedInCurrentAvalanche.find(particleId) != particlesExitedInCurrentAvalanche.end());
+            exitedTotalCount++;
+            exitedTotalMass += particles[i].mass;
+            lastParticleExitTime = currentTime;
 
-            if (!alreadyCountedInAvalanche) {
-                particlesExitedInCurrentAvalanche.insert(particleId);
-                exitedTotalCount++;
-                exitedTotalMass += particles[i].mass;
-                lastParticleExitTime = currentTime;
-
-                if (particles[i].isOriginal) {
-                    exitedOriginalCount++;
-                    exitedOriginalMass += particles[i].mass;
-                }
+            if (particles[i].isOriginal) {
+                exitedOriginalCount++;
+                exitedOriginalMass += particles[i].mass;
             }
 
-            // Reinyección
             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
 
@@ -175,7 +171,7 @@ void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
             b2Body_SetAngularVelocity(particleId, 0.0f);
             b2Body_SetAwake(particleId, true);
         }
-        // Reinyectar partículas que se escapan por los lados
+        // Lados/abajo fuera de la abertura -> reinyectar
         else if (pos.y < EXIT_BELOW_Y || pos.x < -SILO_WIDTH || pos.x > SILO_WIDTH) {
             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
