@@ -3,67 +3,6 @@
 #include <iomanip>
 
 // =================================================================================================
-// 1. MANEJO DE PARTÍCULAS (SALIDA Y REINYECCIÓN)
-// =================================================================================================
-
-// void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
-//                      int& exitedTotalCount, float& exitedTotalMass,
-//                      int& exitedOriginalCount, float& exitedOriginalMass)
-// {
-//     const float EXIT_BELOW_Y = -1.5f;
-//     const float OUTLET_LEFT_X  = -OUTLET_X_HALF_WIDTH;
-//     const float OUTLET_RIGHT_X =  OUTLET_X_HALF_WIDTH;
-
-//     const float REINJECT_HALF_WIDTH = SILO_WIDTH * REINJECT_WIDTH_RATIO * 0.5f;
-//     const float REINJECT_MIN_X = -REINJECT_HALF_WIDTH;
-//     const float REINJECT_MAX_X =  REINJECT_HALF_WIDTH;
-//     const float REINJECT_MIN_Y = siloHeight * REINJECT_HEIGHT_RATIO;
-//     const float REINJECT_MAX_Y = siloHeight * (REINJECT_HEIGHT_RATIO + REINJECT_HEIGHT_VARIATION);
-
-//     exitedTotalCount = 0;
-//     exitedTotalMass = 0.0f;
-//     exitedOriginalCount = 0;
-//     exitedOriginalMass = 0.0f;
-
-//     for (size_t i = 0; i < particleBodyIds.size(); ++i) {
-//         b2BodyId particleId = particleBodyIds[i];
-//         b2Vec2 pos = b2Body_GetPosition(particleId);
-
-//         // Salida por la abertura -> contar SIEMPRE (tránsitos)
-//         if (pos.y < EXIT_BELOW_Y && pos.x >= OUTLET_LEFT_X && pos.x <= OUTLET_RIGHT_X) {
-//             exitedTotalCount++;
-//             exitedTotalMass += particles[i].mass;
-//             lastParticleExitTime = currentTime;
-
-//             if (particles[i].isOriginal) {
-//                 exitedOriginalCount++;
-//                 exitedOriginalMass += particles[i].mass;
-//             }
-
-//             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
-//             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
-
-//             b2Body_SetTransform(particleId, (b2Vec2){randomX, randomY}, (b2Rot){0.0f, 1.0f});
-//             b2Body_SetLinearVelocity(particleId, (b2Vec2){0.0f, 0.0f});
-//             b2Body_SetAngularVelocity(particleId, 0.0f);
-//             b2Body_SetAwake(particleId, true);
-//         }
-//         // Lados/abajo fuera de la abertura -> reinyectar
-//         else if (pos.y < EXIT_BELOW_Y || pos.x < -SILO_WIDTH || pos.x > SILO_WIDTH) {
-//             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
-//             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
-
-//             b2Body_SetTransform(particleId, (b2Vec2){randomX, randomY}, (b2Rot){0.0f, 1.0f});
-//             b2Body_SetLinearVelocity(particleId, (b2Vec2){0.0f, 0.0f});
-//             b2Body_SetAngularVelocity(particleId, 0.0f);
-//             b2Body_SetAwake(particleId, true);
-//         }
-//     }
-//         recordFlowData(simulationTime, exitedTotalCount, exitedTotalMass,
-//                    exitedOriginalCount, exitedOriginalMass);
-// }
-
-// =================================================================================================
 // 2. RAYCAST Y REINYECCIÓN DE ARCO
 // =================================================================================================
 
@@ -110,8 +49,6 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId) {
     }
 
     if (!anyHit) {
-        // No se necesita imprimir si es una llamada normal, solo si ya hubo muchos reintentos.
-        // std::cout << "detectAndReinjectArchViaRaycast: no se detectaron partículas tras reintentos internos.\n";
         return;
     }
 
@@ -125,7 +62,6 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId) {
 
         b2Vec2 pos = b2Body_GetPosition(body);
         float jitter = jitterDistribution(randomEngine);
-        // Reinyección más precisa en Y
         float randomY = REINJECT_HEIGHT + ((float)rand() / RAND_MAX - 0.5f) * REINJECT_HEIGHT_VARIATION;
         b2Vec2 newPos = { pos.x + jitter, randomY };
 

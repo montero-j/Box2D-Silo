@@ -29,7 +29,7 @@ float RaycastCallback(b2ShapeId shapeId, b2Vec2 point, b2Vec2 normal, float frac
         data->hitBodies.insert(bodyId);
 
         if (!data->raySegments.empty()) {
-            // Lógica para registrar el punto de impacto, mantenida del código original.
+    
         }
     }
     return fraction;
@@ -117,7 +117,6 @@ void finalizeDataFiles(bool simulationInterrupted) {
 // =========================================================
 
 void applyRandomImpulses() {
-    // Extraído de silo-simulation.cpp
     if (simulationTime - lastShockTime >= SHOCK_INTERVAL) {
         for (const auto& particle : particles) {
             float magnitude = impulseMagnitudeDistribution(randomEngine) * 0.5f;
@@ -152,7 +151,6 @@ void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
         b2BodyId particleId = particleBodyIds[i];
         b2Vec2 pos = b2Body_GetPosition(particleId);
 
-        // Salida por la abertura -> contar SIEMPRE (tránsitos)
         if (pos.y < EXIT_BELOW_Y && pos.x >= OUTLET_LEFT_X && pos.x <= OUTLET_RIGHT_X) {
             exitedTotalCount++;
             exitedTotalMass += particles[i].mass;
@@ -171,7 +169,7 @@ void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
             b2Body_SetAngularVelocity(particleId, 0.0f);
             b2Body_SetAwake(particleId, true);
         }
-        // Lados/abajo fuera de la abertura -> reinyectar
+
         else if (pos.y < EXIT_BELOW_Y || pos.x < -SILO_WIDTH || pos.x > SILO_WIDTH) {
             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
@@ -186,7 +184,7 @@ void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
 
 void recordFlowData(float currentTime, int exitedTotalCount, float exitedTotalMass,
                     int exitedOriginalCount, float exitedOriginalMass) {
-    // Extraído de silo-simulation.cpp
+
     accumulatedMass += exitedTotalMass;
     accumulatedParticles += exitedTotalCount;
     accumulatedOriginalMass += exitedOriginalMass;
@@ -220,7 +218,7 @@ void recordFlowData(float currentTime, int exitedTotalCount, float exitedTotalMa
 }
 
 void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
-    // Extraído de silo-simulation.cpp
+
     const float REINJECT_HEIGHT = siloHeight * REINJECT_HEIGHT_RATIO;
     float baseRange = OUTLET_WIDTH * 2.0f;
     float progressiveMultiplier = 1.0f + (blockageRetryCount * 0.5f);
@@ -290,7 +288,7 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
 }
 
 void finalizeAvalanche() {
-    // Extraído de silo-simulation.cpp
+
     float currentAvalancheDuration = simulationTime - avalancheStartTime;
     
     if (currentAvalancheDuration >= MIN_AVALANCHE_DURATION) {
@@ -314,7 +312,6 @@ void finalizeAvalanche() {
 }
 
 void startAvalanche() {
-    // Lógica para iniciar una avalancha (modularizada del main loop)
     inAvalanche = true;
     avalancheStartTime = simulationTime;
     avalancheStartParticleCount = totalExitedParticles;
@@ -323,7 +320,6 @@ void startAvalanche() {
 }
 
 void startBlockage() {
-    // Lógica para iniciar un atasco (modularizada del main loop)
     finalizeAvalanche();
     inBlockage = true;
     blockageStartTime = simulationTime;
@@ -332,7 +328,6 @@ void startBlockage() {
 }
 
 void checkFlowStatus(b2WorldId worldId, float timeSinceLastExit) {
-    // Lógica de control de flujo (extraída del main loop)
     
     if (!inAvalanche && !inBlockage) {
         // Estado inicial: esperando primer flujo

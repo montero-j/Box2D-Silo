@@ -16,9 +16,8 @@
 
 // =========================================================
 // DEFINICIÓN E INICIALIZACIÓN DE VARIABLES GLOBALES DE ESTE MÓDULO
-// (Estas variables son declaradas como 'extern' en include/Initialization.h)
 // =========================================================
-b2WorldId worldId = b2_nullWorldId; // <--- LÍNEA CORREGIDA AÑADIDA
+b2WorldId worldId = b2_nullWorldId;
 std::vector<ParticleInfo> particles;
 std::vector<b2BodyId> particleBodyIds;
 
@@ -27,7 +26,7 @@ std::vector<b2BodyId> particleBodyIds;
 // =========================================================
 
 bool parseAndValidateArgs(int argc, char** argv) {
-    // Lectura de argumentos de la línea de comandos
+    
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--size-ratio") == 0 && i + 1 < argc) {
             SIZE_RATIO = std::stof(argv[++i]);
@@ -88,7 +87,6 @@ bool parseAndValidateArgs(int argc, char** argv) {
         }
     }
 
-    // Validación de parámetros (Mantenemos la validación original)
     if (REINJECT_HEIGHT_RATIO < 0.1f || REINJECT_HEIGHT_RATIO > 12.0f) {
         std::cerr << "Advertencia: REINJECT_HEIGHT_RATIO fuera del rango recomendado. Ajustando a 0.51.\n";
         REINJECT_HEIGHT_RATIO = 0.51f;
@@ -116,25 +114,17 @@ bool calculateDerivedParameters() {
 
     OUTLET_X_HALF_WIDTH = OUTLET_WIDTH / 2.0f;
 
-    // =========================================================================
-    // LÓGICA CORREGIDA PARA CALCULAR LA MEZCLA BASADA EN CHI
-    // Prioriza el cálculo de CHI si TOTAL_PARTICLES (N_ref) se estableció (> 0).
-    // Esto asegura que los conteos explícitos (NUM_...) sean sobrescritos si
-    // el usuario está usando la lógica de conservación de masa.
-    // =========================================================================
     if (TOTAL_PARTICLES > 0) {
         
-        // Determinar si el componente L-type será Polígono
         bool usePolygonsAsLargeComponent = (NUM_SIDES > 0 || NUM_POLYGON_PARTICLES > 0);
-        int N_ref = TOTAL_PARTICLES; // TOTAL_PARTICLES es nuestro N_ref para la masa
+        int N_ref = TOTAL_PARTICLES;
 
-        // Limpiar los conteos explícitos, ya que vamos a calcularlos
         NUM_LARGE_CIRCLES = 0;
         NUM_SMALL_CIRCLES = 0;
         NUM_POLYGON_PARTICLES = 0;
 
         if (SIZE_RATIO < 1e-3) {
-            // Caso límite de radio pequeño casi cero
+            
             if (usePolygonsAsLargeComponent) {
                 NUM_POLYGON_PARTICLES = N_ref;
             } else {
@@ -160,7 +150,7 @@ bool calculateDerivedParameters() {
             int N_S = static_cast<int>(std::round(N_S_float));
 
             // 3. Asignar y actualizar el número total de partículas
-            TOTAL_PARTICLES = N_L + N_S; // Este es el nuevo N_total
+            TOTAL_PARTICLES = N_L + N_S;
 
             if (usePolygonsAsLargeComponent) {
                 NUM_POLYGON_PARTICLES = N_L;
@@ -173,16 +163,11 @@ bool calculateDerivedParameters() {
             }
         }
     } else {
-        // Si TOTAL_PARTICLES = 0, simplemente usamos la suma de los conteos explícitos (si es que se dieron).
+        
         TOTAL_PARTICLES = NUM_LARGE_CIRCLES + NUM_SMALL_CIRCLES + NUM_POLYGON_PARTICLES;
     }
-    // =========================================================================
 
-
-    // =========================================================================
-    // LÓGICA DE ÁREA DEL POLÍGONO IGUAL AL ÁREA DEL CÍRCULO GRANDE
-    // (Esta lógica se mantiene, es correcta)
-    // =========================================================================
+    
     if (NUM_POLYGON_PARTICLES > 0 && POLYGON_PERIMETER == 0.0f) {
         if (NUM_SIDES < 3) {
             std::cerr << "Error: Un polígono debe tener al menos 3 lados (NUM_SIDES).\n";
@@ -192,8 +177,7 @@ bool calculateDerivedParameters() {
         // Área deseada = Área del Círculo Grande (Radio = BASE_RADIUS)
         const float desired_area = M_PI * BASE_RADIUS * BASE_RADIUS;
 
-        // Utilizamos la fórmula del área del polígono: A = N * s^2 / (4 * tan(pi/N))
-        // Despejamos s^2: s^2 = (4 * A * tan(pi/N)) / N
+
 
         float tan_pi_over_N = tanf(M_PI / (float)NUM_SIDES);
 
@@ -218,7 +202,6 @@ bool calculateDerivedParameters() {
     return true;
 }
 
-// ... (El resto de las funciones createWorldAndWalls, createParticles, y runSedimentation se mantienen igual)
 b2WorldId createWorldAndWalls(b2BodyId& outletBlockIdRef) {
 
     // Configurar mundo Box2D
@@ -226,10 +209,8 @@ b2WorldId createWorldAndWalls(b2BodyId& outletBlockIdRef) {
     worldDef.gravity = (b2Vec2){0.0f, -9.81f};
     b2WorldId newWorldId = b2CreateWorld(&worldDef);
 
-    // IMPORTANTE: Asignar el ID del mundo creado a la variable global
     worldId = newWorldId;
 
-    // Definición de la forma de las paredes
     b2ShapeDef shapeDef = b2DefaultShapeDef();
     shapeDef.filter.categoryBits = 0x0001;
     shapeDef.filter.maskBits = 0xFFFF;
@@ -312,8 +293,6 @@ void createParticles(b2WorldId worldId) {
     // Calcular radio máximo para evitar superposiciones
     float maxParticleRadius = largeCircleRadius;
     if (NUM_POLYGON_PARTICLES > 0) {
-        // En este punto, POLYGON_PERIMETER ya fue calculado para igualar el área/masa del disco grande.
-        // Usamos la fórmula para encontrar el radio de la circunferencia circunscrita.
         float polyCircumRadius = POLYGON_PERIMETER / (2.0f * NUM_SIDES * sin(M_PI / NUM_SIDES));
         maxParticleRadius = std::max(maxParticleRadius, polyCircumRadius);
     }
@@ -358,7 +337,7 @@ void createParticles(b2WorldId worldId) {
         float particleX = particlePositions[i].first;
         float particleY = particlePositions[i].second;
 
-        float randomAngle = angleDistribution(randomEngine); // Usa la distribución de Constants.h
+        float randomAngle = angleDistribution(randomEngine);
         b2Rot randomRotation = {cosf(randomAngle / 2.0f), sinf(randomAngle / 2.0f)};
 
         b2BodyDef particleDef = b2DefaultBodyDef();
@@ -391,10 +370,9 @@ void createParticles(b2WorldId worldId) {
             currentNumSides = NUM_SIDES;
             if (currentNumSides < 3) currentNumSides = 3;
 
-            // Radio de la circunferencia circunscrita del polígono (ya calculado)
             float polyCircumRadius = POLYGON_PERIMETER / (2.0f * currentNumSides * sin(M_PI / currentNumSides));
             currentParticleSize = polyCircumRadius;
-            const float POLYGON_SKIN_RADIUS = 0.0f; // Asumiendo skin radius cero
+            const float POLYGON_SKIN_RADIUS = 0.0f;
 
             b2Vec2 vertices[BOX2D_MAX_POLYGON_VERTICES];
             int actualNumSides = std::min(currentNumSides, BOX2D_MAX_POLYGON_VERTICES);
@@ -431,16 +409,11 @@ void runSedimentation(b2WorldId worldId) {
     const int REQUIRED_STABILITY_CHECKS = 3;
     bool sedimentationComplete = false;
 
-    // Aquí se asume que las variables de archivo (simulationDataFile) están definidas en el scope global.
-    // Esto es un placeholder para evitar errores de compilación, asumiendo que las definiciones están en otro .cpp
-    // std::ofstream simulationDataFile;
 
     while (sedimentationTime < MAX_SEDIMENTATION_TIME && !sedimentationComplete) {
         b2World_Step(worldId, TIME_STEP, SUB_STEP_COUNT);
         sedimentationTime += TIME_STEP;
 
-        // La lógica de guardado de datos de la simulación se mantiene aquí, aunque necesita variables externas
-        // if (SAVE_SIMULATION_DATA && ((int)(sedimentationTime * 100)) % 5 == 0) { ... }
 
         if (sedimentationTime - lastStabilityCheck >= STABILITY_CHECK_INTERVAL) {
             totalKineticEnergy = 0.0f;

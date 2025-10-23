@@ -9,7 +9,7 @@
 #include <ctime>
 
 // =================================================================================================
-// 1. CONSTANTES GLOBALES DE LA SIMULACIÓN (DEFINICIÓN CON VALORES POR DEFECTO)
+// 1. CONSTANTES GLOBALES DE LA SIMULACIÓN
 // =================================================================================================
 
 // Parámetros ajustables
@@ -30,7 +30,7 @@ float REINJECT_HEIGHT_VARIATION = 0.043f;
 float REINJECT_WIDTH_RATIO = 0.31f;
 
 // =================================================================================================
-// 2. VARIABLES DE ESTADO Y DATOS (DEFINICIÓN CON VALOR INICIAL)
+// 2. VARIABLES DE ESTADO Y DATOS
 // =================================================================================================
 
 // Parámetros de partículas
@@ -47,7 +47,7 @@ float OUTLET_X_HALF_WIDTH = 0.0f;
 // Variables de estado y registro
 float simulationTime = 0.0f;
 float lastPrintTime = 0.0f;
-float lastRaycastTime = -0.5f; // Inicializado con -RAYCAST_COOLDOWN
+float lastRaycastTime = -0.5f;
 float lastShockTime = 0.0f;
 int frameCounter = 0;
 bool SAVE_SIMULATION_DATA = false;

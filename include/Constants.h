@@ -118,7 +118,6 @@ extern std::uniform_real_distribution<> angleDistribution;
 extern std::uniform_real_distribution<> impulseMagnitudeDistribution;
 
 // Comparador para b2BodyId en std::set
-// ESTA DEBE SER LA ÚNICA DEFINICIÓN DE BodyIdComparator EN TODO EL ARCHIVO
 struct BodyIdComparator {
     bool operator()(const b2BodyId& a, const b2BodyId& b) const {
         return a.index1 < b.index1;

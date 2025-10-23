@@ -1,6 +1,5 @@
 // src/main.cpp
 
-// INCLUSIONES ESTÁNDAR DE C++ (Completas)
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -18,13 +17,12 @@
 #include <cstdint>
 #include <tuple>
 
-// INCLUSIONES DE TUS MÓDULOS
 #include "Constants.h"
 #include "Initialization.h"
 #include "DataHandling.h"
 
 // =========================================================
-// FUNCIÓN PRINCIPAL (Lógica del bucle principal extraída de silo-simulation.cpp)
+// FUNCIÓN PRINCIPAL
 // =========================================================
 
 int main(int argc, char** argv) {
@@ -65,9 +63,7 @@ int main(int argc, char** argv) {
 
     // 5. Bucle de Simulaciones 
     for (CURRENT_SIMULATION = 1; CURRENT_SIMULATION <= TOTAL_SIMULATIONS; ++CURRENT_SIMULATION) {
-        
-        // Reinicialización de variables de estado (omito para simplicidad, en un bucle real esto sería necesario)
-        
+                
         // 6. Inicialización del Mundo, Muros y Bloqueo
         worldId = createWorldAndWalls(tempOutletBlockId);
 
