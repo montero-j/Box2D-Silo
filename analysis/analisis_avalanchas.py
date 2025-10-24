@@ -377,7 +377,7 @@ def procesar_arbol(
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Análisis de avalanchas (bloques separados por >= umbral_s sin cambios en NoPTotal).")
-    p.add_argument("--raiz", type=Path, default=Path("/home/jmontero/Box2d-v2/Box2D-Silo/simulations"),
+    p.add_argument("--raiz", type=Path, default=Path("/home/jmontero/Box2D/Box2D-Silo/simulations"),
                    help="Carpeta raíz que contiene subcarpetas con flow_data.csv")
     p.add_argument("--salida", type=Path, default=Path("resultados_avalanchas"),
                    help="Carpeta de salida para CSVs/tablas/plots")
