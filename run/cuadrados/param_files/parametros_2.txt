@@ -19,5 +19,5 @@ SAVE_SIM_DATA=0
 # Parámetros adicionales opcionales (descomentarlos si se necesitan)
 SILO_HEIGHT=135.0
 SILO_WIDTH=20.2
-OUTLET_WIDTH=5.19
+OUTLET_WIDTH=4.19
 MIN_TIME=-30.0

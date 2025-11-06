@@ -32,6 +32,6 @@ bool parseAndValidateArgs(int argc, char** argv);
 bool calculateDerivedParameters();
 b2WorldId createWorldAndWalls(b2BodyId& outletBlockIdRef);
 void createParticles(b2WorldId worldId);
-void runSedimentation(b2WorldId worldId);
+bool runSedimentation(b2WorldId worldId);
 
 #endif // INITIALIZATION_H

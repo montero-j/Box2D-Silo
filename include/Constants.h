@@ -28,8 +28,8 @@ extern float SILO_WIDTH;
 extern float silo_height;
 
 // Constantes físicas y temporales (const)
-const float TIME_STEP = 0.005f;
-const int SUB_STEP_COUNT = 20;
+const float TIME_STEP = 0.0005f; //0.005
+const int SUB_STEP_COUNT = 40;
 const float BLOCKAGE_THRESHOLD = 5.0f;
 const float RECORD_INTERVAL = 0.01f;
 const float MIN_AVALANCHE_DURATION = 0.5f;

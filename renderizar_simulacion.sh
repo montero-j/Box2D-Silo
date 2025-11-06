@@ -120,11 +120,8 @@ SEARCH_PATTERN="*${TOTAL_PARTICLES}*chi${params[CHI]}*ratio${params[SIZE-RATIO]}
 
 # Buscar en diferentes ubicaciones posibles
 SIMULATION_DIRS=(
-    "./simulations/sim_${SEARCH_PATTERN}"
-    "./data/simulations/sim_${SEARCH_PATTERN}"
-    "./examples/simulations/sim_${SEARCH_PATTERN}"
-    "./tests/simulations/sim_${SEARCH_PATTERN}"
-)
+    "/home/jmontero/Box2D/Box2D-Silo/simulations/sim_${SEARCH_PATTERN}"
+    )
 
 FOUND_SIM=""
 for pattern in "${SIMULATION_DIRS[@]}"; do
@@ -139,6 +136,7 @@ done
 # Si no se encontró con el patrón específico, buscar la simulación más reciente
 if [[ -z "$FOUND_SIM" ]]; then
     echo -e "${YELLOW}No se encontró simulación con patrón específico, buscando la más reciente...${NC}"
+    echo -e "$SIMULATION_DIRS"
     
     # Buscar la simulación más reciente en todas las ubicaciones
     RECENT_SIM=$(find ./simulations/ ./data/simulations/ ./examples/simulations/ ./tests/simulations/ -name "simulation_data.csv" -type f 2>/dev/null | head -1)
@@ -176,7 +174,7 @@ else
 fi
 
 # Verificar si el script de renderizado existe
-RENDER_SCRIPT="analysis/render_simulation.py"
+RENDER_SCRIPT="script/render_simulation_cpu.py"
 if [[ ! -f "$RENDER_SCRIPT" ]]; then
     echo -e "${RED}Error: El script de renderizado no existe: $RENDER_SCRIPT${NC}"
     exit 1

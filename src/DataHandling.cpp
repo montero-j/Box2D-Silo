@@ -29,7 +29,7 @@ float RaycastCallback(b2ShapeId shapeId, b2Vec2 point, b2Vec2 normal, float frac
         data->hitBodies.insert(bodyId);
 
         if (!data->raySegments.empty()) {
-    
+
         }
     }
     return fraction;
@@ -40,7 +40,7 @@ float RaycastCallback(b2ShapeId shapeId, b2Vec2 point, b2Vec2 normal, float frac
 // =========================================================
 
 void initializeDataFiles() {
-    
+
     // Crear directorio de resultados
     std::ostringstream dirNameStream;
     dirNameStream << "sim_" << CURRENT_SIMULATION
@@ -73,13 +73,13 @@ void initializeDataFiles() {
     }
     avalancheDataFile.open(outputDir + "avalanche_data.csv");
     flowDataFile.open(outputDir + "flow_data.csv");
-    
+
     // Encabezado para flow_data.csv
     flowDataFile << "Time,MassTotal,MassFlowRate,NoPTotal,NoPFlowRate,MassOriginalTotal,MassOriginalFlowRate,NoPOriginalTotal,NoPOriginalFlowRate\n";
 }
 
 void finalizeDataFiles(bool simulationInterrupted) {
-    
+
     if (inAvalanche && !simulationInterrupted) {
         finalizeAvalanche();
     }
@@ -88,11 +88,11 @@ void finalizeDataFiles(bool simulationInterrupted) {
     }
 
     float totalSimulationTime = simulationTime;
-    
+
     if (accumulatedMass > 0) {
-        recordFlowData(simulationTime, 0, 0, 0, 0); 
+        recordFlowData(simulationTime, 0, 0, 0, 0);
     }
-    
+
     avalancheDataFile << "\n===== RESUMEN FINAL =====\n";
     avalancheDataFile << "# Tiempo total de simulación: " << totalSimulationTime << " s\n";
     avalancheDataFile << "# Tiempo total en avalanchas: " << totalFlowingTime << " s\n";
@@ -290,23 +290,23 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
 void finalizeAvalanche() {
 
     float currentAvalancheDuration = simulationTime - avalancheStartTime;
-    
+
     if (currentAvalancheDuration >= MIN_AVALANCHE_DURATION) {
         totalFlowingTime += currentAvalancheDuration;
         int particlesInThisAvalanche = totalExitedParticles - avalancheStartParticleCount;
-        
+
         avalancheDataFile << "Avalancha " << (avalancheCount + 1) << ","
                         << avalancheStartTime << ","
                         << simulationTime << ","
                         << currentAvalancheDuration << ","
                         << particlesInThisAvalanche << "\n";
-        
+
         avalancheCount++;
         std::cout << "Avalancha " << avalancheCount << " registrada: "
-                  << currentAvalancheDuration << "s, " 
+                  << currentAvalancheDuration << "s, "
                   << particlesInThisAvalanche << " partículas\n";
     }
-    
+
     particlesExitedInCurrentAvalanche.clear();
     inAvalanche = false;
 }
@@ -328,7 +328,7 @@ void startBlockage() {
 }
 
 void checkFlowStatus(b2WorldId worldId, float timeSinceLastExit) {
-    
+
     if (!inAvalanche && !inBlockage) {
         // Estado inicial: esperando primer flujo
         if (totalExitedParticles > lastTotalExitedCount) {
@@ -348,7 +348,7 @@ void checkFlowStatus(b2WorldId worldId, float timeSinceLastExit) {
             float blockageDuration = simulationTime - blockageStartTime;
             totalBlockageTime += blockageDuration;
             inBlockage = false;
-            startAvalanche(); 
+            startAvalanche();
             std::cout << "Flujo reanudado después de atasco de " << blockageDuration << "s\n";
         }
         else if (simulationTime - blockageStartTime > 2.0f) {
@@ -359,6 +359,6 @@ void checkFlowStatus(b2WorldId worldId, float timeSinceLastExit) {
             }
         }
     }
-    
+
     lastTotalExitedCount = totalExitedParticles;
 }
