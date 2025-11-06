@@ -54,7 +54,7 @@ void detectAndReinjectArchViaRaycast(b2WorldId worldId) {
 
     const int maxReinjectPerStep = 10;
     int reinjected = 0;
-    
+
     std::uniform_real_distribution<> jitterDistribution(-0.05f, 0.05f);
 
     for (b2BodyId body : raycastData.hitBodies) {

@@ -3,109 +3,108 @@
 #include "Constants.h"
 #include <iostream>
 #include <string>
-#include <vector>
-#include <algorithm>
-#include <cstdlib>
-#include <cstring>
-
-
-
-#include <unordered_map>
-#include <random>
 #include <cmath>
+#include <cstdlib>
+#include <algorithm>
+#include <vector>
+#include <cstring>
+#include <random>
+#include <set>
+#include <sstream>
+#include <limits>
+#include <iomanip>
 
+// =========================================================
+// DEFINICIÓN E INICIALIZACIÓN DE VARIABLES GLOBALES DE ESTE MÓDULO
+// =========================================================
+b2WorldId worldId = b2_nullWorldId;
+std::vector<ParticleInfo> particles;
+std::vector<b2BodyId> particleBodyIds;
 
-// Frecuencias configurables definidas en main.cpp
-extern int EXIT_CHECK_EVERY_STEPS;
-extern int SAVE_FRAME_EVERY_STEPS;
-
-static void printUsage() {
-    std::cout << "Uso: silo_simulator [opciones]\n";
-    std::cout << "Opciones principales:\n";
-    std::cout << "  --base-radius <val>        Radio base de partículas\n";
-    std::cout << "  --size-ratio <val>         Razón de tamaño (r)\n";
-    std::cout << "  --chi <val>                Fracción de partículas pequeñas (χ)\n";
-    std::cout << "  --total-particles <N>      Total de partículas\n";
-    std::cout << "  --num-large-circles <N>    Cant. discos grandes\n";
-    std::cout << "  --num-small-circles <N>    Cant. discos chicos\n";
-    std::cout << "  --num-polygon-particles <N> Cant. partículas poligonales\n";
-    std::cout << "  --num-sides <N>            Lados de los polígonos\n";
-    std::cout << "  --current-sim <i>          Índice de simulación actual\n";
-    std::cout << "  --total-sims <N>           Cantidad total de simulaciones\n";
-    std::cout << "  --save-sim-data <0|1>      Guardar simulation_data.csv\n";
-    std::cout << "  --silo-height <val>        Altura del silo\n";
-    std::cout << "  --silo-width <val>         Ancho del silo\n";
-    std::cout << "  --outlet-width <val>       Abertura del silo\n";
-    std::cout << "  --exit-check-every <N>     Verifica salida de partículas cada N pasos (default 10)\n";
-    std::cout << "  --save-frame-every <M>     Guarda frames cada M pasos (default 100)\n";
-}
+// =========================================================
+// IMPLEMENTACIÓN DE LAS FUNCIONES DEL MÓDULO
+// =========================================================
 
 bool parseAndValidateArgs(int argc, char** argv) {
-    if (argc <= 1) {
-        return true;
-    }
-
-    for (int i = 1; i < argc; ++i) {
-        std::string arg(argv[i]);
-
-        if (arg == "--help" || arg == "-h") {
-            printUsage();
-            return false;
-        }
-        else if (arg == "--base-radius" && i + 1 < argc) {
-            BASE_RADIUS = std::stof(argv[++i]);
-        }
-        else if (arg == "--size-ratio" && i + 1 < argc) {
+    
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--size-ratio") == 0 && i + 1 < argc) {
             SIZE_RATIO = std::stof(argv[++i]);
         }
-        else if (arg == "--chi" && i + 1 < argc) {
+        else if (strcmp(argv[i], "--chi") == 0 && i + 1 < argc) {
             CHI = std::stof(argv[++i]);
         }
-        else if (arg == "--total-particles" && i + 1 < argc) {
-            TOTAL_PARTICLES = std::stoi(argv[++i]);
+        else if (strcmp(argv[i], "--base-radius") == 0 && i + 1 < argc) {
+            BASE_RADIUS = std::stof(argv[++i]);
         }
-        else if (arg == "--num-large-circles" && i + 1 < argc) {
-            NUM_LARGE_CIRCLES = std::stoi(argv[++i]);
-        }
-        else if (arg == "--num-small-circles" && i + 1 < argc) {
-            NUM_SMALL_CIRCLES = std::stoi(argv[++i]);
-        }
-        else if (arg == "--num-polygon-particles" && i + 1 < argc) {
-            NUM_POLYGON_PARTICLES = std::stoi(argv[++i]);
-        }
-        else if (arg == "--num-sides" && i + 1 < argc) {
-            NUM_SIDES = std::stoi(argv[++i]);
-        }
-        else if (arg == "--current-sim" && i + 1 < argc) {
-            CURRENT_SIMULATION = std::stoi(argv[++i]);
-        }
-        else if (arg == "--total-sims" && i + 1 < argc) {
-            TOTAL_SIMULATIONS = std::stoi(argv[++i]);
-        }
-        else if (arg == "--save-sim-data" && i + 1 < argc) {
-            SAVE_SIMULATION_DATA = (std::stoi(argv[++i]) != 0);
-        }
-        else if (arg == "--silo-height" && i + 1 < argc) {
-            silo_height = std::stof(argv[++i]);
-        }
-        else if (arg == "--silo-width" && i + 1 < argc) {
-            SILO_WIDTH = std::stof(argv[++i]);
-        }
-        else if (arg == "--outlet-width" && i + 1 < argc) {
+        else if (strcmp(argv[i], "--outlet-width") == 0 && i + 1 < argc) {
             OUTLET_WIDTH = std::stof(argv[++i]);
         }
-        // === NUEVOS FLAGS ===
-        else if (arg == "--exit-check-every" && i + 1 < argc) {
-            EXIT_CHECK_EVERY_STEPS = std::max(1, std::stoi(argv[++i]));
+        else if (strcmp(argv[i], "--silo-width") == 0 && i + 1 < argc) {
+            SILO_WIDTH = std::stof(argv[++i]);
         }
-        else if (arg == "--save-frame-every" && i + 1 < argc) {
-            SAVE_FRAME_EVERY_STEPS = std::max(1, std::stoi(argv[++i]));
+        else if (strcmp(argv[i], "--silo-height") == 0 && i + 1 < argc) {
+            silo_height = std::stof(argv[++i]);
         }
-        else {
-            std::cerr << "Argumento desconocido: " << arg << "\n";
-            printUsage();
-            return false;
+        else if (strcmp(argv[i], "--total-particles") == 0 && i + 1 < argc) {
+            TOTAL_PARTICLES = std::stoi(argv[++i]);
         }
+        else if (strcmp(argv[i], "--num-large-circles") == 0 && i + 1 < argc) {
+            NUM_LARGE_CIRCLES = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--num-small-circles") == 0 && i + 1 < argc) {
+            NUM_SMALL_CIRCLES = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--num-polygon-particles") == 0 && i + 1 < argc) {
+            NUM_POLYGON_PARTICLES = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--num-sides") == 0 && i + 1 < argc) {
+            NUM_SIDES = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--polygon-perimeter") == 0 && i + 1 < argc) {
+            POLYGON_PERIMETER = std::stof(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--current-sim") == 0 && i + 1 < argc) {
+            CURRENT_SIMULATION = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--total-sims") == 0 && i + 1 < argc) {
+            TOTAL_SIMULATIONS = std::stoi(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--save-sim-data") == 0 && i + 1 < argc) {
+            SAVE_SIMULATION_DATA = (std::stoi(argv[++i]) == 1);
+        }
+        else if (strcmp(argv[i], "--reinject-height-ratio") == 0 && i + 1 < argc) {
+            REINJECT_HEIGHT_RATIO = std::stof(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--reinject-height-variation") == 0 && i + 1 < argc) {
+            REINJECT_HEIGHT_VARIATION = std::stof(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--reinject-width-ratio") == 0 && i + 1 < argc) {
+            REINJECT_WIDTH_RATIO = std::stof(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--max-avalanches") == 0 && i + 1 < argc) {
+            MAX_AVALANCHES = std::stoi(argv[++i]);
+        }
+    }
+
+    if (REINJECT_HEIGHT_RATIO < 0.1f || REINJECT_HEIGHT_RATIO > 12.0f) {
+        std::cerr << "Advertencia: REINJECT_HEIGHT_RATIO fuera del rango recomendado. Ajustando a 0.51.\n";
+        REINJECT_HEIGHT_RATIO = 0.51f;
+    }
+
+    if (REINJECT_HEIGHT_VARIATION < 0.0f || REINJECT_HEIGHT_VARIATION > 0.2f) {
+        std::cerr << "Advertencia: REINJECT_HEIGHT_VARIATION fuera del rango recomendado. Ajustando a 0.043.\n";
+        REINJECT_HEIGHT_VARIATION = 0.043f;
+    }
+
+    if (REINJECT_WIDTH_RATIO < 0.1f || REINJECT_WIDTH_RATIO > 0.8f) {
+        std::cerr << "Advertencia: REINJECT_WIDTH_RATIO fuera del rango recomendado. Ajustando a 0.31.\n";
+        REINJECT_WIDTH_RATIO = 0.31f;
+    }
+
+    if (silo_height <= 0 || SILO_WIDTH <= 0 || OUTLET_WIDTH <= 0) {
+        std::cerr << "Error: Dimensiones del silo deben ser positivas.\n";
+        return false;
     }
 
     return true;
@@ -116,7 +115,7 @@ bool calculateDerivedParameters() {
     OUTLET_X_HALF_WIDTH = OUTLET_WIDTH / 2.0f;
 
     if (TOTAL_PARTICLES > 0) {
-
+        
         bool usePolygonsAsLargeComponent = (NUM_SIDES > 0 || NUM_POLYGON_PARTICLES > 0);
         int N_ref = TOTAL_PARTICLES;
 
@@ -125,7 +124,7 @@ bool calculateDerivedParameters() {
         NUM_POLYGON_PARTICLES = 0;
 
         if (SIZE_RATIO < 1e-3) {
-
+            
             if (usePolygonsAsLargeComponent) {
                 NUM_POLYGON_PARTICLES = N_ref;
             } else {
@@ -146,7 +145,7 @@ bool calculateDerivedParameters() {
 
             // 2. Calcular N_S (Número de partículas pequeñas)
             // N_S = K * (N_ref - N_L)
-            int N_L_final = N_L;
+            int N_L_final = N_L; 
             float N_S_float = K_mass_ratio * (float)(N_ref - N_L_final);
             int N_S = static_cast<int>(std::round(N_S_float));
 
@@ -164,11 +163,11 @@ bool calculateDerivedParameters() {
             }
         }
     } else {
-
+        
         TOTAL_PARTICLES = NUM_LARGE_CIRCLES + NUM_SMALL_CIRCLES + NUM_POLYGON_PARTICLES;
     }
 
-
+    
     if (NUM_POLYGON_PARTICLES > 0 && POLYGON_PERIMETER == 0.0f) {
         if (NUM_SIDES < 3) {
             std::cerr << "Error: Un polígono debe tener al menos 3 lados (NUM_SIDES).\n";
@@ -267,57 +266,7 @@ b2WorldId createWorldAndWalls(b2BodyId& outletBlockIdRef) {
     return newWorldId;
 }
 
-
-static void settleUntilStable(b2WorldId worldId,
-                              float maxTime = 1.5f,
-                              float checkInterval = 0.5f,
-                              float dt = 1.0f/240.0f,
-                              int subSteps = 4,
-                              float stabilityThreshold = 0.1f,
-                              int requiredChecks = 2)
-{
-    float t = 0.0f, lastCheck = 0.0f;
-    float prevKE = 1e9f;
-    int ok = 0;
-
-    while (t < maxTime && ok < requiredChecks) {
-        b2World_Step(worldId, dt, subSteps);
-        t += dt;
-
-        if (t - lastCheck >= checkInterval) {
-            float KE = 0.0f;
-            for (const auto& p : particles) {
-                b2Vec2 v = b2Body_GetLinearVelocity(p.bodyId);
-                KE += 0.5f * p.mass * (v.x*v.x + v.y*v.y);
-            }
-            float dE = std::fabs(KE - prevKE);
-            ok = (dE < stabilityThreshold) ? ok+1 : 0;
-            prevKE = KE;
-            lastCheck = t;
-        }
-    }
-}
-
-
-
 void createParticles(b2WorldId worldId) {
-
-    // =================== Parámetros de generación por tandas ===================
-    const int   GEN_BATCH_SIZE    = 250;         // cantidad por tanda
-    const int   GEN_RELAX_STEPS   = 240;         // steps de relax entre tandas
-    const float GEN_RELAX_DT      = 1.0f / 240;  // dt de cada step
-    const int   GEN_SUB_STEPS     = 4;           // substeps por step (ajustar según tu build)
-
-    // Banda de spawneo (estrecha, cerca del techo) para que caigan
-    const float SPAWN_BAND_HEIGHT = 2.5f * BASE_RADIUS; // altura de la banda superior
-
-    // (Si tu firma de b2World_Step difiere, adaptá abajo la llamada.)
-    auto relaxWorld = [&](int nSteps){
-        for (int s = 0; s < nSteps; ++s){
-            b2World_Step(worldId, GEN_RELAX_DT, GEN_SUB_STEPS);
-        }
-    };
-    // ==========================================================================
 
     particles.clear();
     particleBodyIds.clear();
@@ -325,417 +274,175 @@ void createParticles(b2WorldId worldId) {
     const float largeCircleRadius = BASE_RADIUS;
     const float smallCircleRadius = BASE_RADIUS * SIZE_RATIO;
 
-    // --------- util local: 2D, SAT, grilla ----------
-    struct Vec2 {
-        float x, y;
-        Vec2() : x(0), y(0) {}
-        Vec2(float X, float Y) : x(X), y(Y) {}
-        Vec2 operator+(const Vec2& o) const { return {x+o.x, y+o.y}; }
-        Vec2 operator-(const Vec2& o) const { return {x-o.x, y-o.y}; }
-    };
-    auto dot = [](const Vec2& a, const Vec2& b){ return a.x*b.x + a.y*b.y; };
-    auto length2 = [&](const Vec2& v){ return dot(v,v); };
-
-    struct Poly {
-        std::vector<Vec2> local; // CCW
-        float R = 0.f;           // circunradio
-    };
-    auto make_regular_ngon = [&](int n, float R){
-        Poly p; p.local.resize(n); p.R = R;
-        for (int i=0;i<n;++i){
-            float a = 2.0f*(float)M_PI*i/n;
-            p.local[i] = {R*std::cos(a), R*std::sin(a)};
-        }
-        return p;
-    };
-    auto poly_from_circumradius = [&](int sides, float R){
-        if (sides < 3) sides = 3;
-        return make_regular_ngon(sides, R);
-    };
-    auto worldVerts = [&](const Poly& P, const Vec2& pos, float ang){
-        float c = std::cos(ang), s = std::sin(ang);
-        std::vector<Vec2> out; out.reserve(P.local.size());
-        for (auto &v : P.local){
-            Vec2 r{ c*v.x - s*v.y, s*v.x + c*v.y };
-            out.push_back(r + pos);
-        }
-        return out;
-    };
-
-    // === SAT (ejes normalizados + EPS) ===
-    auto projectOnAxisNorm = [&](const std::vector<Vec2>& V, const Vec2& axisNorm,
-                                 float& minP, float& maxP){
-        float p0 = dot(V[0], axisNorm);
-        minP = maxP = p0;
-        for (size_t i=1;i<V.size();++i){
-            float p = dot(V[i], axisNorm);
-            if (p < minP) minP = p;
-            if (p > maxP) maxP = p;
-        }
-    };
-
-    auto overlapSAT = [&](const std::vector<Vec2>& A, const std::vector<Vec2>& B)->bool{
-        const float EPS = 1e-5f;
-        auto testAxes = [&](const std::vector<Vec2>& V)->bool{
-            for (size_t i=0;i<V.size();++i){
-                Vec2 p0 = V[i];
-                Vec2 p1 = V[(i+1)%V.size()];
-                Vec2 e{p1.x - p0.x, p1.y - p0.y};
-                float len = std::sqrt(e.x*e.x + e.y*e.y);
-                if (len <= 0.0f) continue;
-                Vec2 axisNorm{-e.y/len, e.x/len};
-                float minA, maxA, minB, maxB;
-                projectOnAxisNorm(A, axisNorm, minA, maxA);
-                projectOnAxisNorm(B, axisNorm, minB, maxB);
-                if (maxA <= minB + EPS || maxB <= minA + EPS) return false;
-            }
-            return true;
-        };
-        return testAxes(A) && testAxes(B);
-    };
-
-    struct CellKey { int cx, cy; };
-    struct CellKeyHash {
-        size_t operator()(const CellKey& k) const noexcept {
-            return std::hash<long long>()(((long long)k.cx<<32) ^ (long long)(k.cy));
-        }
-    };
-    struct CellKeyEq {
-        bool operator()(const CellKey& a, const CellKey& b) const noexcept {
-            return a.cx==b.cx && a.cy==b.cy;
-        }
-    };
-    auto cellOf = [&](const Vec2& p, float cellSize){
-        int cx = (int)std::floor(p.x / cellSize);
-        int cy = (int)std::floor(p.y / cellSize);
-        return CellKey{cx, cy};
-    };
-
-    // --------- catálogo de formas ----------
-    const int N_DISK = 20; // disco como 20-gon para precolocación
-
-    float polyCircumRadius = 0.0f;
-    if (NUM_POLYGON_PARTICLES > 0) {
-        int ns = std::max(3, NUM_SIDES);
-        polyCircumRadius = POLYGON_PERIMETER / (2.0f * ns * std::sin((float)M_PI / ns));
-    }
-
-    std::vector<Poly> catalog;
-    int CAT_LARGE_DISK = -1, CAT_SMALL_DISK = -1, CAT_POLY = -1;
-
-    if (NUM_LARGE_CIRCLES > 0) {
-        CAT_LARGE_DISK = (int)catalog.size();
-        catalog.push_back(make_regular_ngon(N_DISK, largeCircleRadius));
-    }
-    if (NUM_SMALL_CIRCLES > 0) {
-        CAT_SMALL_DISK = (int)catalog.size();
-        catalog.push_back(make_regular_ngon(N_DISK, smallCircleRadius));
-    }
-    if (NUM_POLYGON_PARTICLES > 0) {
-        CAT_POLY = (int)catalog.size();
-        catalog.push_back(poly_from_circumradius(std::max(3, NUM_SIDES), polyCircumRadius));
-    }
-
-    if ((int)catalog.size() == 0 && TOTAL_PARTICLES == 0) {
-        std::cout << "Sin partículas para crear.\n";
-        return;
-    }
-
-    // Radio máximo para grilla
-    float maxR = 0.f;
-    for (auto &p : catalog) maxR = std::max(maxR, p.R);
-    if (maxR <= 0.f) {
-        maxR = std::max(largeCircleRadius, std::max(smallCircleRadius, polyCircumRadius));
-    }
-    const float cellSize  = std::max(2.0f*maxR, 1e-4f);
-    const float clearance = 1.02f;
-
-    // --------- pool de tipos a crear ----------
+    // Definir tipos de partículas a crear
     std::vector<ParticleShapeType> particleTypesToCreate;
-    particleTypesToCreate.reserve(TOTAL_PARTICLES);
-    for (int i = 0; i < NUM_LARGE_CIRCLES;    ++i) particleTypesToCreate.push_back(CIRCLE);
-    for (int i = 0; i < NUM_SMALL_CIRCLES;    ++i) particleTypesToCreate.push_back(CIRCLE);
-    for (int i = 0; i < NUM_POLYGON_PARTICLES;++i) particleTypesToCreate.push_back(POLYGON);
+    for (int i = 0; i < NUM_LARGE_CIRCLES; ++i) particleTypesToCreate.push_back(CIRCLE);
+    for (int i = 0; i < NUM_SMALL_CIRCLES; ++i) particleTypesToCreate.push_back(CIRCLE);
+    for (int i = 0; i < NUM_POLYGON_PARTICLES; ++i) particleTypesToCreate.push_back(POLYGON);
     std::shuffle(particleTypesToCreate.begin(), particleTypesToCreate.end(), randomEngine);
 
-    // Caja global disponible
-    float Rmax_place = std::max(largeCircleRadius, std::max(smallCircleRadius, polyCircumRadius));
-    const float pad = Rmax_place + 0.01f;
-    const float minX_gen = -SILO_WIDTH / 2.0f + pad;
-    const float maxX_gen =  SILO_WIDTH / 2.0f - pad;
+    const float minX_gen = -SILO_WIDTH / 2.0f + BASE_RADIUS + 0.01f;
+    const float maxX_gen = SILO_WIDTH / 2.0f - BASE_RADIUS - 0.01f;
+    const float minY_gen = BASE_RADIUS + 0.01f;
+    const float maxY_gen = silo_height - BASE_RADIUS - 0.01f;
 
-    // Banda superior para spawnear (más angosta en Y)
-    const float bandTop    = GROUND_LEVEL_Y + silo_height - pad;
-    const float bandBottom = std::max(GROUND_LEVEL_Y + pad, bandTop - SPAWN_BAND_HEIGHT);
+    // Generar posiciones aleatorias
+    std::vector<std::pair<float, float>> particlePositions;
+    particlePositions.reserve(TOTAL_PARTICLES);
 
-    std::uniform_real_distribution<float> Ux(minX_gen, maxX_gen);
-    std::uniform_real_distribution<float> Uy(bandBottom, bandTop);
-    std::uniform_real_distribution<float> Uang(0.f, 2.f*(float)M_PI);
+    // Calcular radio máximo para evitar superposiciones
+    float maxParticleRadius = largeCircleRadius;
+    if (NUM_POLYGON_PARTICLES > 0) {
+        float polyCircumRadius = POLYGON_PERIMETER / (2.0f * NUM_SIDES * sin(M_PI / NUM_SIDES));
+        maxParticleRadius = std::max(maxParticleRadius, polyCircumRadius);
+    }
 
-    // Mapeo tipo -> índice de catálogo y circunradio
-    auto getCatalogIndexAndR = [&](ParticleShapeType t, bool isLargeCircle)->std::pair<int,float>{
-        if (t == CIRCLE) {
-            if (isLargeCircle) return {CAT_LARGE_DISK, largeCircleRadius};
-            else               return {CAT_SMALL_DISK, smallCircleRadius};
-        } else {
-            return {CAT_POLY, polyCircumRadius};
+    for (int i = 0; i < TOTAL_PARTICLES; ++i) {
+        bool positionValid = false;
+        int attempts = 0;
+        const int MAX_ATTEMPTS = 1000;
+
+        while (!positionValid && attempts < MAX_ATTEMPTS) {
+            float x = minX_gen + (maxX_gen - minX_gen) * static_cast<float>(rand()) / RAND_MAX;
+            float y = minY_gen + (maxY_gen - minY_gen) * static_cast<float>(rand()) / RAND_MAX;
+
+            // Verificar superposición
+            bool overlaps = false;
+            for (const auto& existingPos : particlePositions) {
+                float dx = x - existingPos.first;
+                float dy = y - existingPos.second;
+                float minDistance = 2.0f * maxParticleRadius + 0.01f;
+                if (dx * dx + dy * dy < minDistance * minDistance) {
+                    overlaps = true;
+                    break;
+                }
+            }
+
+            if (!overlaps) {
+                particlePositions.push_back({x, y});
+                positionValid = true;
+            }
+            attempts++;
         }
-    };
 
-    struct Placed { Vec2 pos; float ang; ParticleShapeType t; bool large; };
+        if (!positionValid) {
+            float x = minX_gen + (maxX_gen - minX_gen) * static_cast<float>(rand()) / RAND_MAX;
+            float y = minY_gen + (maxY_gen - minY_gen) * static_cast<float>(rand()) / RAND_MAX;
+            particlePositions.push_back({x, y});
+        }
+    }
 
-    std::vector<Placed> placed; placed.reserve(TOTAL_PARTICLES);
-    std::unordered_map<CellKey, std::vector<int>, CellKeyHash, CellKeyEq> grid;
+    // Crear partículas con orientaciones aleatorias
+    for (int i = 0; i < TOTAL_PARTICLES; ++i) {
+        float particleX = particlePositions[i].first;
+        float particleY = particlePositions[i].second;
 
-    const int MAX_ATTEMPTS = 2000;
+        float randomAngle = angleDistribution(randomEngine);
+        b2Rot randomRotation = {cosf(randomAngle / 2.0f), sinf(randomAngle / 2.0f)};
 
-    int nLargeRemaining = NUM_LARGE_CIRCLES;
-    int nSmallRemaining = NUM_SMALL_CIRCLES;
+        b2BodyDef particleDef = b2DefaultBodyDef();
+        particleDef.type = b2_dynamicBody;
+        particleDef.position = (b2Vec2){particleX, particleY};
+        particleDef.rotation = randomRotation;
+        particleDef.isBullet = false;
+        b2BodyId particleId = b2CreateBody(worldId, &particleDef);
 
-    // =================== BUCLE POR TANDAS ===================
-    for (int base = 0; base < TOTAL_PARTICLES; base += GEN_BATCH_SIZE) {
-        int batchEnd = std::min(base + GEN_BATCH_SIZE, TOTAL_PARTICLES);
+        b2ShapeDef particleShapeDef = b2DefaultShapeDef();
+        particleShapeDef.density = Density;
+        particleShapeDef.material.friction = 0.5f;
+        particleShapeDef.material.restitution = 0.9f;
 
-        for (int i = base; i < batchEnd; ++i) {
-            ParticleShapeType t = particleTypesToCreate[i];
-            bool isLarge = false;
-            if (t == CIRCLE) {
-                if (nLargeRemaining > 0) { isLarge = true;  --nLargeRemaining; }
-                else                     { isLarge = false; --nSmallRemaining; }
+        ParticleShapeType currentParticleType = particleTypesToCreate[i];
+        float currentParticleSize = 0.0f;
+        int currentNumSides = 0;
+
+        if (currentParticleType == CIRCLE) {
+            bool isLargeCircle = (i < NUM_LARGE_CIRCLES);
+            currentParticleSize = isLargeCircle ? largeCircleRadius : smallCircleRadius;
+
+            b2Circle circle = {};
+            circle.radius = currentParticleSize;
+            b2CreateCircleShape(particleId, &particleShapeDef, &circle);
+
+            b2MassData massData = b2Body_GetMassData(particleId);
+            particles.push_back({particleId, CIRCLE, currentParticleSize, massData.mass, isLargeCircle, 0});
+        } else {
+            currentNumSides = NUM_SIDES;
+            if (currentNumSides < 3) currentNumSides = 3;
+
+            float polyCircumRadius = POLYGON_PERIMETER / (2.0f * currentNumSides * sin(M_PI / currentNumSides));
+            currentParticleSize = polyCircumRadius;
+            const float POLYGON_SKIN_RADIUS = 0.0f;
+
+            b2Vec2 vertices[BOX2D_MAX_POLYGON_VERTICES];
+            int actualNumSides = std::min(currentNumSides, BOX2D_MAX_POLYGON_VERTICES);
+
+            for (int j = 0; j < actualNumSides; ++j) {
+                float angle = 2.0f * M_PI * j / actualNumSides;
+                vertices[j] = (b2Vec2){polyCircumRadius * cos(angle), polyCircumRadius * sin(angle)};
             }
 
-            auto [catIdx, Rcur] = getCatalogIndexAndR(t, isLarge);
-            if (catIdx < 0) { // fallback
-                catIdx = CAT_SMALL_DISK;
-                Rcur = smallCircleRadius;
-                t = CIRCLE; isLarge = false;
-            }
-            const Poly& P = catalog[catIdx];
+            b2Hull hull = b2ComputeHull(vertices, actualNumSides);
+            b2Polygon polygonShape = b2MakePolygon(&hull, POLYGON_SKIN_RADIUS);
+            b2CreatePolygonShape(particleId, &particleShapeDef, &polygonShape);
 
-            bool ok = false;
-            int attempts = 0;
-            Vec2 pos;
-            float ang = Uang(randomEngine); // también para círculos (20-gon del SAT)
-
-            while (!ok && attempts < MAX_ATTEMPTS) {
-                ++attempts;
-
-                // Elegimos dentro de la banda superior para que caigan
-                pos = {Ux(randomEngine), Uy(randomEngine)};
-                if (t != CIRCLE) ang = Uang(randomEngine);
-
-                // broad-phase con grilla (considera TODO lo ya colocado en tandas previas)
-                bool overlaps = false;
-                CellKey c = cellOf(pos, cellSize);
-                for (int dy=-1; dy<=1 && !overlaps; ++dy){
-                    for (int dx=-1; dx<=1 && !overlaps; ++dx){
-                        CellKey nb{c.cx+dx, c.cy+dy};
-                        auto it = grid.find(nb);
-                        if (it == grid.end()) continue;
-                        for (int idx : it->second){
-                            const Placed& Q = placed[idx];
-                            auto [catIdxQ, RQ] = getCatalogIndexAndR(Q.t, Q.large);
-                            const Poly& PQ = catalog[catIdxQ];
-
-                            float Rsum = clearance*(P.R + PQ.R);
-                            Vec2 d{pos.x - Q.pos.x, pos.y - Q.pos.y};
-                            if (length2(d) > Rsum*Rsum) continue;
-
-                            auto A = worldVerts(P, pos, ang);
-                            auto B = worldVerts(PQ, Q.pos, Q.ang);
-                            if (overlapSAT(A, B)) { overlaps = true; break; }
-                        }
-                    }
-                }
-
-                if (!overlaps) {
-                    int newIndex = (int)placed.size();
-                    placed.push_back({pos, ang, t, isLarge});
-                    grid[c].push_back(newIndex);
-
-                    // ========= Crear cuerpo inmediatamente (por tanda) =========
-                    b2BodyDef particleDef = b2DefaultBodyDef();
-                    particleDef.type = b2_dynamicBody;
-                    particleDef.position = (b2Vec2){pos.x, pos.y};
-                    b2Rot rot = { std::cos(ang/2.0f), std::sin(ang/2.0f) };
-                    particleDef.rotation = rot;
-                    particleDef.isBullet = false;
-                    b2BodyId particleId = b2CreateBody(worldId, &particleDef);
-
-                    b2ShapeDef particleShapeDef = b2DefaultShapeDef();
-                    particleShapeDef.density = Density;
-                    particleShapeDef.material.friction = 0.5f;
-                    particleShapeDef.material.restitution = 0.9f;
-
-                    if (t == CIRCLE) {
-                        float r = isLarge ? largeCircleRadius : smallCircleRadius;
-                        b2Circle circle = {};
-                        circle.radius = r;
-                        b2CreateCircleShape(particleId, &particleShapeDef, &circle);
-
-                        b2MassData massData = b2Body_GetMassData(particleId);
-                        particles.push_back({particleId, CIRCLE, r, massData.mass, isLarge, 0});
-                    } else {
-                        int ns = std::max(3, NUM_SIDES);
-                        float R = polyCircumRadius;
-                        const float POLYGON_SKIN_RADIUS = 0.0f;
-
-                        b2Vec2 vertices[BOX2D_MAX_POLYGON_VERTICES];
-                        int actualNumSides = std::min(ns, BOX2D_MAX_POLYGON_VERTICES);
-                        for (int j = 0; j < actualNumSides; ++j) {
-                            float a = 2.0f * (float)M_PI * j / actualNumSides;
-                            vertices[j] = (b2Vec2){R * std::cos(a), R * std::sin(a)};
-                        }
-                        b2Hull hull = b2ComputeHull(vertices, actualNumSides);
-                        b2Polygon polygonShape = b2MakePolygon(&hull, POLYGON_SKIN_RADIUS);
-                        b2CreatePolygonShape(particleId, &particleShapeDef, &polygonShape);
-
-                        b2MassData massData = b2Body_GetMassData(particleId);
-                        particles.push_back({particleId, POLYGON, R, massData.mass, true, actualNumSides});
-                    }
-
-                    particleBodyIds.push_back(particleId);
-                    ok = true;
-                }
-            }
-
-            if (!ok) {
-                // escape: spawnear un poco por encima de la banda y dejar caer
-                Vec2 posEsc = {Ux(randomEngine), bandTop + 3.0f*maxR};
-                float angEsc = Uang(randomEngine);
-
-                int newIndex = (int)placed.size();
-                placed.push_back({posEsc, angEsc, t, isLarge});
-                grid[cellOf(posEsc, cellSize)].push_back(newIndex);
-
-                b2BodyDef particleDef = b2DefaultBodyDef();
-                particleDef.type = b2_dynamicBody;
-                particleDef.position = (b2Vec2){posEsc.x, posEsc.y};
-                b2Rot rot = { std::cos(angEsc/2.0f), std::sin(angEsc/2.0f) };
-                particleDef.rotation = rot;
-                particleDef.isBullet = false;
-                b2BodyId particleId = b2CreateBody(worldId, &particleDef);
-
-                b2ShapeDef particleShapeDef = b2DefaultShapeDef();
-                particleShapeDef.density = Density;
-                particleShapeDef.material.friction = 0.5f;
-                particleShapeDef.material.restitution = 0.9f;
-
-                if (t == CIRCLE) {
-                    float r = isLarge ? largeCircleRadius : smallCircleRadius;
-                    b2Circle circle = {};
-                    circle.radius = r;
-                    b2CreateCircleShape(particleId, &particleShapeDef, &circle);
-
-                    b2MassData massData = b2Body_GetMassData(particleId);
-                    particles.push_back({particleId, CIRCLE, r, massData.mass, isLarge, 0});
-                } else {
-                    int ns = std::max(3, NUM_SIDES);
-                    float R = polyCircumRadius;
-                    const float POLYGON_SKIN_RADIUS = 0.0f;
-
-                    b2Vec2 vertices[BOX2D_MAX_POLYGON_VERTICES];
-                    int actualNumSides = std::min(ns, BOX2D_MAX_POLYGON_VERTICES);
-                    for (int j = 0; j < actualNumSides; ++j) {
-                        float a = 2.0f * (float)M_PI * j / actualNumSides;
-                        vertices[j] = (b2Vec2){R * std::cos(a), R * std::sin(a)};
-                    }
-                    b2Hull hull = b2ComputeHull(vertices, actualNumSides);
-                    b2Polygon polygonShape = b2MakePolygon(&hull, POLYGON_SKIN_RADIUS);
-                    b2CreatePolygonShape(particleId, &particleShapeDef, &polygonShape);
-
-                    b2MassData massData = b2Body_GetMassData(particleId);
-                    particles.push_back({particleId, POLYGON, R, massData.mass, true, actualNumSides});
-                }
-                particleBodyIds.push_back(particleId);
-            }
-        } // fin for i en tanda
-
-        // --------- Relax: dejamos caer y acomodar antes de la próxima tanda ----------
-        // relaxWorld(GEN_RELAX_STEPS);
-        settleUntilStable(worldId, /*maxTime*/ 1.5f, /*checkInterval*/ 0.5f,
-                  /*dt*/ 1.0f/240.0f, /*subSteps*/ 4,
-                  /*stabilityThreshold*/ 0.1f, /*requiredChecks*/ 2);
-    } // fin for por tandas
-
-    std::cout << "Generación por tandas sin superposición: " << TOTAL_PARTICLES
-              << " partículas (mezcla discos/polígonos) con orientación aleatoria\n";
+            b2MassData massData = b2Body_GetMassData(particleId);
+            particles.push_back({particleId, POLYGON, currentParticleSize, massData.mass, true, actualNumSides});
+        }
+        particleBodyIds.push_back(particleId);
+    }
+    std::cout << "Generación completada: " << TOTAL_PARTICLES << " partículas con distribución y orientación aleatorias\n\n";
 }
 
-// Antes: void runSedimentation(b2WorldId worldId)
-bool runSedimentation(b2WorldId worldId) {
+void runSedimentation(b2WorldId worldId) {
+
     std::cout << "Dejando que " << TOTAL_PARTICLES << " partículas se sedimenten por gravedad\n";
 
-    const float MAX_SEDIMENTATION_TIME   = 60.0f;
-    const float STABILITY_CHECK_INTERVAL = 0.5f;
-    const int   REQUIRED_CHECKS          = 3;
+    float sedimentationTime = 0.0f;
+    const float MAX_SEDIMENTATION_TIME = 5.0f;
+    const float STABILITY_CHECK_INTERVAL = 1.0f;
+    float lastStabilityCheck = 0.0f;
 
-    const float KE_ABS_PER_PART_EPS      = 1e-3f;
-    const float KE_DELTA_EPS             = 1e-2f;
-    const float V_SLOW_EPS               = 0.05f;
-    const float W_SLOW_EPS               = 0.2f;
-    const float SLOW_FRACTION_REQUIRED   = 0.95f;
+    float totalKineticEnergy = 0.0f;
+    float previousKineticEnergy = 1000.0f;
+    int stabilityCounter = 0;
+    const int REQUIRED_STABILITY_CHECKS = 3;
+    bool sedimentationComplete = false;
 
-    float Rmax = BASE_RADIUS;
-    if (SIZE_RATIO > 0.f) Rmax = std::max(Rmax, BASE_RADIUS * SIZE_RATIO);
-    if (NUM_POLYGON_PARTICLES > 0 && NUM_SIDES >= 3) {
-        float ns = std::max(3, NUM_SIDES);
-        float polyR = POLYGON_PERIMETER / (2.0f * ns * std::sin(float(M_PI)/ns));
-        Rmax = std::max(Rmax, polyR);
-    }
-    const float pad = Rmax + 0.01f;
-    const float bandTop    = GROUND_LEVEL_Y + silo_height - pad;
-    const float bandMargin = 2.0f * Rmax;
-    const float yCeiling   = bandTop - bandMargin;
 
-    float t = 0.0f, lastCheck = 0.0f;
-    float prevKE = 1e9f;
-    int stableCount = 0;
-
-    while (t < MAX_SEDIMENTATION_TIME) {
+    while (sedimentationTime < MAX_SEDIMENTATION_TIME && !sedimentationComplete) {
         b2World_Step(worldId, TIME_STEP, SUB_STEP_COUNT);
-        t += TIME_STEP;
+        sedimentationTime += TIME_STEP;
 
-        if (t - lastCheck >= STABILITY_CHECK_INTERVAL) {
-            float KE = 0.0f;
-            int slowCount = 0;
-            float yMax = -1e30f;
 
-            for (const auto& p : particles) {
-                b2Vec2 v = b2Body_GetLinearVelocity(p.bodyId);
-                float w  = b2Body_GetAngularVelocity(p.bodyId);
-                KE += 0.5f * p.mass * (v.x*v.x + v.y*v.y);
-                if (std::sqrt(v.x*v.x + v.y*v.y) < V_SLOW_EPS && std::fabs(w) < W_SLOW_EPS)
-                    ++slowCount;
-                b2Vec2 pos = b2Body_GetPosition(p.bodyId);
-                if (pos.y > yMax) yMax = pos.y;
+        if (sedimentationTime - lastStabilityCheck >= STABILITY_CHECK_INTERVAL) {
+            totalKineticEnergy = 0.0f;
+            for (const auto& particle : particles) {
+                b2Vec2 velocity = b2Body_GetLinearVelocity(particle.bodyId);
+                float speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+                totalKineticEnergy += 0.5f * particle.mass * speed * speed;
             }
 
-            const float KE_per_part = (TOTAL_PARTICLES > 0) ? KE / TOTAL_PARTICLES : 0.0f;
-            const float dKE         = std::fabs(KE - prevKE);
-            const float slowFrac    = (TOTAL_PARTICLES > 0) ? float(slowCount) / TOTAL_PARTICLES : 1.0f;
-            const bool  bandClear   = (yMax <= yCeiling);
+            float energyChange = std::abs(totalKineticEnergy - previousKineticEnergy);
+            const float STABILITY_THRESHOLD = 0.1f;
 
-            bool stableKinetics = (KE_per_part < KE_ABS_PER_PART_EPS &&
-                                   dKE         < KE_DELTA_EPS &&
-                                   slowFrac    >= SLOW_FRACTION_REQUIRED);
-
-            if (stableKinetics && bandClear) {
-                if (++stableCount >= REQUIRED_CHECKS) {
-                    std::cout << "Estabilización completa en " << t << " s\n";
-                    return true;
-                }
+            if (energyChange < STABILITY_THRESHOLD) {
+                stabilityCounter++;
             } else {
-                stableCount = 0;
+                stabilityCounter = 0;
             }
 
-            prevKE   = KE;
-            lastCheck = t;
+            if (stabilityCounter >= REQUIRED_STABILITY_CHECKS) {
+                sedimentationComplete = true;
+                std::cout << "Estabilización completa en " << sedimentationTime << " segundos\n";
+            }
+
+            previousKineticEnergy = totalKineticEnergy;
+            lastStabilityCheck = sedimentationTime;
         }
     }
 
-    std::cout << "Sedimentación: timeout a " << MAX_SEDIMENTATION_TIME << " s (NO estable)\n";
-    return false;
+    if (!sedimentationComplete) {
+        std::cout << "Estabilización finalizada por timeout después de " << MAX_SEDIMENTATION_TIME << " segundos\n";
+    }
 }
-
-

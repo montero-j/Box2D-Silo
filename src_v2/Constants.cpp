@@ -8,6 +8,7 @@
 #include <cstring>
 #include <ctime>
 
+
 // =================================================================================================
 // 1. CONSTANTES GLOBALES DE LA SIMULACIÓN
 // =================================================================================================
@@ -22,7 +23,7 @@ float SILO_WIDTH = 20.2f*2*BASE_RADIUS;
 float silo_height = 120*2*BASE_RADIUS;
 
 // Variables de conteo y control
-int MAX_AVALANCHES = 50; 
+int MAX_AVALANCHES = 50;
 
 // Parámetros de reinyección configurables
 float REINJECT_HEIGHT_RATIO = 1.0f;

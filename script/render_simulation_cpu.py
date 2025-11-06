@@ -2,18 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
 import math
 import argparse
 import subprocess
 import traceback
 from tqdm import tqdm
 
-# --- Numpy / CuPy backend -----------------------------------------------------
+# --- backend arrays -----------------------------------------------------------
 def get_array_backend(force_cpu: bool = False):
-    """
-    Devuelve (xp, using_cupy) donde xp es numpy o cupy, según disponibilidad y flags.
-    """
     if force_cpu:
         import numpy as np
         return np, False
@@ -25,12 +21,9 @@ def get_array_backend(force_cpu: bool = False):
         return np, False
 
 def to_numpy(arr):
-    """
-    Convierte un arreglo xp (numpy o cupy) a numpy.ndarray para dibujar con PyOpenGL.
-    """
     import numpy as np
     try:
-        import cupy as cp  # puede no existir
+        import cupy as cp
         if isinstance(arr, cp.ndarray):
             return cp.asnumpy(arr)
     except Exception:
@@ -47,7 +40,6 @@ from PIL import Image
 class SiloRenderer:
     def __init__(self, width=1920, height=2560,
                  base_radius=0.5, size_ratio=0.4,
-                 num_large_circles=0, num_small_circles=0, num_polygon_particles=0,
                  silo_height=11.70, silo_width=2.6, outlet_width=0.3056,
                  high_quality=False):
         self.width = width
@@ -55,22 +47,12 @@ class SiloRenderer:
         self.high_quality = high_quality
 
         if high_quality:
-            self.particle_scale = 200
-            self.min_particle_size = 8
-            self.particle_border = 3
             self.circle_segments = 100
         else:
-            self.particle_scale = 150
-            self.min_particle_size = 5
-            self.particle_border = 2
             self.circle_segments = 50
 
         self.large_particle_radius = base_radius
         self.small_particle_radius = base_radius * size_ratio
-        self.num_large_circles = num_large_circles
-        self.num_small_circles = num_small_circles
-        self.num_polygon_particles = num_polygon_particles
-        self.total_particles = num_large_circles + num_small_circles + num_polygon_particles
         self.debug_mode = True
         self.silo_height = silo_height
         self.silo_width = silo_width
@@ -81,85 +63,61 @@ class SiloRenderer:
         self._init_opengl()
 
     def _init_opengl(self):
+        if not self._glut_initialized:
+            glut.glutInit()
+            self._glut_initialized = True
+
+        display_mode = glut.GLUT_DOUBLE | glut.GLUT_RGBA
         try:
-            if not self._glut_initialized:
-                glut.glutInit()
-                self._glut_initialized = True
-
-            display_mode = glut.GLUT_DOUBLE | glut.GLUT_RGBA
             if self.high_quality:
-                try:
-                    display_mode |= glut.GLUT_MULTISAMPLE
-                except Exception:
-                    pass
+                display_mode |= glut.GLUT_MULTISAMPLE
+        except Exception:
+            pass
 
-            glut.glutInitDisplayMode(display_mode)
-            glut.glutInitWindowSize(self.width, self.height)
-            if hasattr(self, 'window') and self.window:
-                try:
-                    glut.glutDestroyWindow(self.window)
-                except Exception:
-                    pass
-            self.window = glut.glutCreateWindow(b"Silo Simulation")
+        glut.glutInitDisplayMode(display_mode)
+        glut.glutInitWindowSize(self.width, self.height)
+        if hasattr(self, 'window') and self.window:
             try:
-                glut.glutHideWindow()
+                glut.glutDestroyWindow(self.window)
             except Exception:
                 pass
+        self.window = glut.glutCreateWindow(b"Silo Simulation")
+        try:
+            glut.glutHideWindow()
+        except Exception:
+            pass
 
-            self.framebuffer = gl.glGenFramebuffers(1)
-            gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffer)
+        self.framebuffer = gl.glGenFramebuffers(1)
+        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffer)
 
-            self.texture = gl.glGenTextures(1)
-            gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
-            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8,
-                            self.width, self.height, 0,
-                            gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None)
+        self.texture = gl.glGenTextures(1)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
+        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8,
+                        self.width, self.height, 0,
+                        gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None)
 
-            if self.high_quality:
-                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR_MIPMAP_LINEAR)
-                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-                gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
-            else:
-                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-                gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
 
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
+        gl.glFramebufferTexture2D(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0,
+                                  gl.GL_TEXTURE_2D, self.texture, 0)
 
-            gl.glFramebufferTexture2D(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0,
-                                      gl.GL_TEXTURE_2D, self.texture, 0)
+        if gl.glCheckFramebufferStatus(gl.GL_FRAMEBUFFER) != gl.GL_FRAMEBUFFER_COMPLETE:
+            raise RuntimeError("Framebuffer incompleto")
 
-            if gl.glCheckFramebufferStatus(gl.GL_FRAMEBUFFER) != gl.GL_FRAMEBUFFER_COMPLETE:
-                raise RuntimeError("Framebuffer incompleto")
-
-            gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
-
-        except Exception as e:
-            print(f"Error al inicializar OpenGL: {str(e)}")
-            traceback.print_exc()
-            raise
+        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
 
     def render_frame(self, frame_data):
         try:
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.framebuffer)
             gl.glViewport(0, 0, self.width, self.height)
 
-            if self.high_quality:
-                gl.glEnable(gl.GL_MULTISAMPLE)
-                gl.glEnable(gl.GL_LINE_SMOOTH)
-                gl.glEnable(gl.GL_POLYGON_SMOOTH)
-                gl.glEnable(gl.GL_BLEND)
-                gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-                gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
-                gl.glHint(gl.GL_POLYGON_SMOOTH_HINT, gl.GL_NICEST)
-                gl.glHint(gl.GL_PERSPECTIVE_CORRECTION_HINT, gl.GL_NICEST)
-                gl.glLineWidth(2.0)
-            else:
-                gl.glEnable(gl.GL_MULTISAMPLE)
-                gl.glEnable(gl.GL_LINE_SMOOTH)
-                gl.glEnable(gl.GL_BLEND)
-                gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-                gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
+            gl.glEnable(gl.GL_MULTISAMPLE)
+            gl.glEnable(gl.GL_LINE_SMOOTH)
+            gl.glEnable(gl.GL_BLEND)
+            gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
             gl.glClearColor(0.95, 0.95, 0.95, 1.0)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -167,13 +125,14 @@ class SiloRenderer:
             gl.glMatrixMode(gl.GL_PROJECTION)
             gl.glLoadIdentity()
 
-            # Ajuste de bounds y aspect
+            # límites y aspecto
             target_world_left = -(self.silo_width / 2.0) - self.wall_thickness
             target_world_right = (self.silo_width / 2.0) + self.wall_thickness
             target_world_bottom = self.ground_level_y - self.wall_thickness
             target_world_top = self.silo_height + self.wall_thickness
 
-            margin_particle = max(self.large_particle_radius, self.small_particle_radius,
+            margin_particle = max(self.large_particle_radius,
+                                  self.small_particle_radius,
                                   self.large_particle_radius * 1.5)
             extra_margin_x = 0.2
             extra_margin_y_top = 0.5
@@ -212,11 +171,11 @@ class SiloRenderer:
 
             self._draw_walls()
 
-            if 'rays' in frame_data:
-                self._draw_rays(frame_data['rays'])
-
-            if 'particles' in frame_data and frame_data['particles']['positions'].size > 0:
-                self._draw_particles(frame_data['particles'])
+            # círculos y polígonos
+            if 'circles' in frame_data and frame_data['circles'].size > 0:
+                self._draw_circles(frame_data['circles'])
+            if 'polygons' in frame_data and len(frame_data['polygons']) > 0:
+                self._draw_polygons(frame_data['polygons'])
 
             if self.debug_mode:
                 self._draw_debug_info()
@@ -232,97 +191,72 @@ class SiloRenderer:
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
 
     def _draw_walls(self):
-        try:
-            wall_color = [0.4, 0.4, 0.4, 0.9]
-            ground_color = [0.3, 0.3, 0.3, 0.9]
+        wall_color = [0.4, 0.4, 0.4, 0.9]
+        ground_color = [0.3, 0.3, 0.3, 0.9]
 
-            self._draw_rectangle(
-                -(self.silo_width / 2.0) - self.wall_thickness,
-                self.ground_level_y,
-                self.wall_thickness,
-                self.silo_height,
-                wall_color
-            )
+        self._draw_rectangle(
+            -(self.silo_width / 2.0) - self.wall_thickness,
+            self.ground_level_y,
+            self.wall_thickness,
+            self.silo_height,
+            wall_color
+        )
+        self._draw_rectangle(
+            self.silo_width / 2.0,
+            self.ground_level_y,
+            self.wall_thickness,
+            self.silo_height,
+            wall_color
+        )
+        self._draw_rectangle(
+            -self.silo_width / 2.0,
+            self.ground_level_y - self.wall_thickness,
+            (self.silo_width / 2.0 - self.outlet_x_half_width),
+            self.wall_thickness,
+            ground_color
+        )
+        self._draw_rectangle(
+            self.outlet_x_half_width,
+            self.ground_level_y - self.wall_thickness,
+            (self.silo_width / 2.0 - self.outlet_x_half_width),
+            self.wall_thickness,
+            ground_color
+        )
 
-            self._draw_rectangle(
-                self.silo_width / 2.0,
-                self.ground_level_y,
-                self.wall_thickness,
-                self.silo_height,
-                wall_color
-            )
-
-            self._draw_rectangle(
-                -self.silo_width / 2.0,
-                self.ground_level_y - self.wall_thickness,
-                (self.silo_width / 2.0 - self.outlet_x_half_width),
-                self.wall_thickness,
-                ground_color
-            )
-
-            self._draw_rectangle(
-                self.outlet_x_half_width,
-                self.ground_level_y - self.wall_thickness,
-                (self.silo_width / 2.0 - self.outlet_x_half_width),
-                self.wall_thickness,
-                ground_color
-            )
-        except Exception as e:
-            print(f"Error dibujando paredes: {str(e)}")
-            traceback.print_exc()
-
-    def _draw_particles(self, particles_data):
-        try:
-            positions = to_numpy(particles_data['positions'])
-            types = to_numpy(particles_data['types'])
-            sizes = to_numpy(particles_data['sizes'])
-            num_sides_array = to_numpy(particles_data['num_sides'])
-            angles = particles_data.get('angles', None)
-            angles = to_numpy(angles) if angles is not None else None
-            if angles is None or len(angles) != len(positions):
-                import numpy as np
-                angles = np.zeros(len(positions), dtype=np.float32)
-
-            gl.glEnable(gl.GL_BLEND)
-            gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-            gl.glEnable(gl.GL_POINT_SMOOTH)
-
-            for idx in range(len(positions)):
-                pos = positions[idx]
-                p_type = int(types[idx])
-                p_size = float(sizes[idx])
-                p_num_sides = int(num_sides_array[idx])
-                p_angle = float(angles[idx])
-
-                if p_type == 0:  # CIRCLE
-                    color = [0.2, 0.4, 1.0, 0.9]
-                    self._draw_circle_with_border(pos, p_size, color, self.circle_segments)
-                elif p_type == 1:  # POLYGON
-                    gl.glDisable(gl.GL_POINT_SMOOTH)
-                    color = [0.0, 0.7, 0.3, 0.9]
-                    self._draw_polygon_with_border(pos, p_size, p_num_sides, p_angle, color)
-                    gl.glEnable(gl.GL_POINT_SMOOTH)
-
-        except Exception as e:
-            print(f"Error dibujando partículas: {str(e)}")
-            traceback.print_exc()
-        finally:
-            gl.glDisable(gl.GL_BLEND)
-            gl.glDisable(gl.GL_POINT_SMOOTH)
-
-    def _draw_rays(self, rays):
-        if not rays:
-            return
+    def _draw_circles(self, circles_np):
+        circles = to_numpy(circles_np)
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-        gl.glColor4f(1.0, 0.0, 0.0, 0.3)
-        gl.glLineWidth(1.0)
+        for cx, cy, r in circles:
+            color = [0.2, 0.4, 1.0, 0.9]
+            self._draw_circle_with_border((float(cx), float(cy)), float(r), color, self.circle_segments)
+        gl.glDisable(gl.GL_BLEND)
 
-        gl.glBegin(gl.GL_LINES)
-        for ray in rays:
-            gl.glVertex2f(ray[0][0], ray[0][1])
-            gl.glVertex2f(ray[1][0], ray[1][1])
-        gl.glEnd()
+    def _draw_polygons(self, polygons_list):
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+
+        for poly_np in polygons_list:
+            poly = to_numpy(poly_np)
+            if poly.shape[0] < 3:  # se necesitan al menos 3 vértices
+                continue
+            # borde
+            gl.glLineWidth(2.0)
+            gl.glColor4f(0, 0, 0, 1.0)
+            gl.glBegin(gl.GL_LINE_LOOP)
+            for x, y in poly:
+                gl.glVertex2f(float(x), float(y))
+            gl.glEnd()
+            # relleno
+            gl.glColor4f(0.0, 0.7, 0.3, 0.9)
+            gl.glBegin(gl.GL_TRIANGLE_FAN)
+            cx = float(poly[:,0].mean()); cy = float(poly[:,1].mean())
+            gl.glVertex2f(cx, cy)
+            for x, y in poly:
+                gl.glVertex2f(float(x), float(y))
+            x0, y0 = poly[0]
+            gl.glVertex2f(float(x0), float(y0))
+            gl.glEnd()
 
         gl.glDisable(gl.GL_BLEND)
 
@@ -338,52 +272,13 @@ class SiloRenderer:
             gl.glVertex2f(x, y)
         gl.glEnd()
 
-        if self.high_quality:
-            center_color = [min(1.0, color[0] * 1.1), min(1.0, color[1] * 1.1), min(1.0, color[2] * 1.1), color[3]]
-            edge_color = [max(0.0, color[0] * 0.8), max(0.0, color[1] * 0.8), max(0.0, color[2] * 0.8), color[3]]
-            gl.glBegin(gl.GL_TRIANGLE_FAN)
-            gl.glColor4f(*center_color)
-            gl.glVertex2f(pos[0], pos[1])
-            gl.glColor4f(*edge_color)
-            for i in range(num_segments + 1):
-                theta = 2.0 * math.pi * i / num_segments
-                x = pos[0] + radius * math.cos(theta)
-                y = pos[1] + radius * math.sin(theta)
-                gl.glVertex2f(x, y)
-            gl.glEnd()
-        else:
-            gl.glColor4f(*color)
-            gl.glBegin(gl.GL_TRIANGLE_FAN)
-            gl.glVertex2f(pos[0], pos[1])
-            for i in range(num_segments + 1):
-                theta = 2.0 * math.pi * i / num_segments
-                x = pos[0] + radius * math.cos(theta)
-                y = pos[1] + radius * math.sin(theta)
-                gl.glVertex2f(x, y)
-            gl.glEnd()
-
-    def _draw_polygon_with_border(self, pos, circum_radius, num_sides, angle, color):
-        if num_sides < 3:
-            return
-        adjusted_radius = circum_radius
-
-        gl.glLineWidth(2.0)
-        gl.glColor4f(0, 0, 0, 1.0)
-        gl.glBegin(gl.GL_LINE_LOOP)
-        for i in range(num_sides):
-            vertex_angle = 2.0 * math.pi * i / num_sides + angle
-            x = pos[0] + adjusted_radius * math.cos(vertex_angle)
-            y = pos[1] + adjusted_radius * math.sin(vertex_angle)
-            gl.glVertex2f(x, y)
-        gl.glEnd()
-
         gl.glColor4f(*color)
         gl.glBegin(gl.GL_TRIANGLE_FAN)
         gl.glVertex2f(pos[0], pos[1])
-        for i in range(num_sides + 1):
-            vertex_angle = 2.0 * math.pi * i / num_sides + angle
-            x = pos[0] + adjusted_radius * math.cos(vertex_angle)
-            y = pos[1] + adjusted_radius * math.sin(vertex_angle)
+        for i in range(num_segments + 1):
+            theta = 2.0 * math.pi * i / num_segments
+            x = pos[0] + radius * math.cos(theta)
+            y = pos[1] + radius * math.sin(theta)
             gl.glVertex2f(x, y)
         gl.glEnd()
 
@@ -414,10 +309,6 @@ class SiloRenderer:
 
 # ------------------------------------------------------------------------------
 def parse_intervals(intervals_str):
-    """
-    'a:b, c:d, e:f' -> lista de tuplas [(a,b), (c,d), (e,f)] con a<b.
-    Soporta espacios; ignora entradas vacías.
-    """
     spans = []
     if not intervals_str:
         return spans
@@ -435,194 +326,292 @@ def parse_intervals(intervals_str):
     return spans
 
 def time_in_intervals(t, spans):
-    """Retorna True si el tiempo t está en alguno de los intervalos [a,b]."""
     for a, b in spans:
         if a <= t <= b:
             return True
     return False
 
 # ------------------------------------------------------------------------------
-def load_simulation_data(file_path, xp, min_time=-1.0, max_time=float('inf'),
-                         frame_step=1, total_particles=250,
-                         intervals=None):
+import csv
+
+def load_simulation_data(file_path, xp,
+                         min_time=-1.0, max_time=float('inf'),
+                         frame_step=1, intervals=None,
+                         poly_num_sides=None,
+                         num_circles=None, num_polygons=None):
     """
-    Lectura robusta del CSV. Ahora permite:
-      - Filtrar por min/max_time o por múltiples intervalos (si intervals no es None)
-      - Backend xp: numpy (CPU) o cupy (GPU); si es numpy, no usa GPU.
+    Soporta:
+    - Formato NUEVO con marcadores SOLO en el header:
+        Header: Time,circles_begin,circles_end,polygons_begin,polygons_end
+        Row:    t, cx,cy,r, cx,cy,r, ..., [vacío], x1,y1,..., xN,yN, x1,y1,..., [vacío]
+      En este modo usamos los contadores --num-circles/--num-polygons para partir la fila.
+    - (Fallback) Formato VIEJO por partícula: x,y,type,size,sides,angle ... (convierte a vértices).
+
+    Requisitos:
+      * Para polígonos en el nuevo formato se necesita --poly-sides = N (≥3).
+      * Si los marcadores están solo en el header, **pasá** --num-circles y --num-polygons.
     """
+
+    def time_in_ranges(t):
+        if intervals:
+            for a, b in intervals:
+                if a <= t <= b:
+                    return True
+            return False
+        return (t >= min_time) and (t <= max_time)
+
     frames = []
-    frame_count = 0
-    use_intervals = intervals is not None and len(intervals) > 0
+    idx = 0
 
-    with open(file_path, 'r') as f:
-        header_line = f.readline()
-        header_parts = header_line.strip().split(',')
-        indices = [int(m.group(1)) for part in header_parts
-                   for m in [re.search(r"p(\d+)_x", part)] if m]
-        header_particle_count = (max(indices) + 1) if indices else total_particles
+    with open(file_path, 'r', newline='') as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+        if header is None:
+            return frames
 
-        for line in f:
-            parts = line.strip().split(',')
-            if not parts:
+        header = [h.strip() for h in header]
+        has_header_markers = all(tok in header for tok in
+                                 ['Time', 'circles_begin', 'circles_end', 'polygons_begin', 'polygons_end'])
+
+        # Indices del header (si existen)
+        if has_header_markers:
+            h_time = header.index('Time')
+            h_cb   = header.index('circles_begin')
+            h_ce   = header.index('circles_end')
+            h_pb   = header.index('polygons_begin')
+            h_pe   = header.index('polygons_end')
+
+        for row in reader:
+            # NO eliminamos '' deliberadamente; mantenemos alineación
+            parts = [p.strip() for p in row]
+
+            # --- Intento 1: Formato NUEVO con marcadores solo en HEADER ---
+            if has_header_markers and num_circles is not None and num_polygons is not None:
+                try:
+                    t = float(parts[h_time])
+                except (ValueError, IndexError):
+                    continue
+
+                if not time_in_ranges(t):
+                    if t > max_time:
+                        break
+                    else:
+                        continue
+
+                if idx % frame_step != 0:
+                    idx += 1
+                    continue
+
+                # Layout asumido:
+                # [0] Time
+                # [1 .. 1+3*num_circles-1] triples de círculos
+                # luego polígonos en pares (2*N por polígono)
+                # + hay celdas '' “de separación” según exporte el C++
+
+                # Extraer círculos (tres valores por círculo) justo después de Time
+                start_c = 1
+                end_c   = start_c + 3 * num_circles
+                csec = parts[start_c:end_c]
+
+                circles = []
+                for i in range(0, len(csec), 3):
+                    try:
+                        cx = float(csec[i]); cy = float(csec[i+1]); r = float(csec[i+2])
+                        circles.append((cx, cy, r))
+                    except (ValueError, IndexError):
+                        break
+
+                # El resto (ignorando separadores vacíos iniciales) son vértices de polígonos
+                psec = parts[end_c:]
+                # Si hay separadores '' al principio, saltarlos
+                while psec and psec[0] == '':
+                    psec = psec[1:]
+
+                polys = []
+                if num_polygons and poly_num_sides and poly_num_sides >= 3:
+                    stride = 2 * poly_num_sides
+                    usable = (len(psec) // stride) * stride
+                    for j in range(0, usable, stride):
+                        chunk = psec[j:j+stride]
+                        verts = []
+                        ok = True
+                        for k in range(0, stride, 2):
+                            try:
+                                x = float(chunk[k]); y = float(chunk[k+1])
+                            except (ValueError, IndexError):
+                                ok = False; break
+                            verts.append((x, y))
+                        if ok and len(verts) >= 3:
+                            polys.append(verts)
+                else:
+                    # Sin info suficiente para reconstruir polígonos
+                    polys = []
+
+                frames.append({
+                    'time': t,
+                    'circles': xp.array(circles, dtype=xp.float32) if circles else xp.zeros((0,3), dtype=xp.float32),
+                    'polygons': [xp.array(poly, dtype=xp.float32) for poly in polys],
+                })
+                idx += 1
                 continue
 
+            # --- Intento 2: Formato NUEVO con marcadores en cada fila (raro, pero lo soportamos) ---
             try:
-                current_time = float(parts[0])
+                i_cb = parts.index('circles_begin')
+                i_ce = parts.index('circles_end')
+                i_pb = parts.index('polygons_begin')
+                i_pe = parts.index('polygons_end')
+
+                t = float(parts[0])
+                if not time_in_ranges(t):
+                    if t > max_time:
+                        break
+                    else:
+                        continue
+                if idx % frame_step != 0:
+                    idx += 1
+                    continue
+
+                csec = parts[i_cb+1:i_ce]
+                psec = parts[i_pb+1:i_pe]
+
+                circles = []
+                for i in range(0, len(csec), 3):
+                    try:
+                        cx = float(csec[i]); cy = float(csec[i+1]); r = float(csec[i+2])
+                        circles.append((cx, cy, r))
+                    except (ValueError, IndexError):
+                        break
+
+                polys = []
+                if poly_num_sides and poly_num_sides >= 3:
+                    stride = 2 * poly_num_sides
+                    usable = (len(psec) // stride) * stride
+                    for j in range(0, usable, stride):
+                        chunk = psec[j:j+stride]
+                        verts = []
+                        ok = True
+                        for k in range(0, stride, 2):
+                            try:
+                                x = float(chunk[k]); y = float(chunk[k+1])
+                            except (ValueError, IndexError):
+                                ok = False; break
+                            verts.append((x, y))
+                        if ok and len(verts) >= 3:
+                            polys.append(verts)
+
+                frames.append({
+                    'time': t,
+                    'circles': xp.array(circles, dtype=xp.float32) if circles else xp.zeros((0,3), dtype=xp.float32),
+                    'polygons': [xp.array(poly, dtype=xp.float32) for poly in polys],
+                })
+                idx += 1
+                continue
+
+            except ValueError:
+                # No hay tokens en la fila → probamos formato viejo
+                pass
+
+            # --- Intento 3: Fallback Formato VIEJO (por partícula) ---
+            try:
+                t = float(parts[0])
             except ValueError:
                 continue
-
-            # Filtrado por tiempo
-            if use_intervals:
-                if not time_in_intervals(current_time, intervals):
-                    continue
-            else:
-                if current_time < min_time:
-                    continue
-                if current_time > max_time:
+            if not time_in_ranges(t):
+                if t > max_time:
                     break
-
-            if frame_count % frame_step != 0:
-                frame_count += 1
+                else:
+                    continue
+            if idx % frame_step != 0:
+                idx += 1
                 continue
 
-            # Detectar rayos
-            has_rays = ("rays_begin" in parts and "rays_end" in parts)
-            if has_rays:
-                rays_begin_idx = parts.index("rays_begin")
-                rays_end_idx = parts.index("rays_end")
-                fields_before_rays = rays_begin_idx
-            else:
-                rays_begin_idx = rays_end_idx = None
-                fields_before_rays = len(parts)
-
-            # Intentar determinar per_particle
+            # Inferir bloques por partícula (6,5,4)
             per_particle = None
-            if header_particle_count > 0 and (fields_before_rays - 1) % header_particle_count == 0:
-                per_particle = (fields_before_rays - 1) // header_particle_count
-            else:
-                if (fields_before_rays - 1) % 6 == 0:
-                    per_particle = 6
-                    header_particle_count = (fields_before_rays - 1) // 6
-                elif (fields_before_rays - 1) % 5 == 0:
-                    per_particle = 5
-                    header_particle_count = (fields_before_rays - 1) // 5
-                else:
-                    per_particle = 6  # por defecto
-
-            particle_positions = []
-            particle_types = []
-            particle_sizes = []
-            particle_num_sides = []
-            particle_angles = []
-
-            for p in range(header_particle_count):
-                base = 1 + p * per_particle
-                if base + (per_particle - 1) >= fields_before_rays:
+            for cand in (6, 5, 4):
+                if (len(parts) - 1) % cand == 0:
+                    per_particle = cand
                     break
+            if per_particle is None:
+                idx += 1
+                continue
+
+            count = (len(parts) - 1) // per_particle
+            circles = []
+            polys = []
+            for p in range(count):
+                base = 1 + p * per_particle
                 try:
                     x = float(parts[base]); y = float(parts[base + 1])
+                    p_type = int(float(parts[base + 2])) if per_particle >= 3 else 0
+                    size   = float(parts[base + 3])      if per_particle >= 4 else 0.0
+                    sides  = int(float(parts[base + 4])) if per_particle >= 5 else 0
+                    angle  = float(parts[base + 5])      if per_particle >= 6 else 0.0
                 except (ValueError, IndexError):
                     break
 
-                p_type = int(float(parts[base + 2])) if per_particle >= 3 else 0
-                size = float(parts[base + 3]) if per_particle >= 4 else 0.0
-                sides = int(float(parts[base + 4])) if per_particle >= 5 else 0
-                angle = float(parts[base + 5]) if per_particle >= 6 else 0.0
-
-                particle_positions.append([x, y])
-                particle_types.append(p_type)
-                particle_sizes.append(size)
-                particle_num_sides.append(sides)
-                particle_angles.append(angle)
-
-            rays = []
-            if has_rays and (rays_end_idx > rays_begin_idx + 1):
-                ray_data = parts[rays_begin_idx + 1:rays_end_idx]
-                for i in range(0, len(ray_data), 4):
-                    try:
-                        x1 = float(ray_data[i]); y1 = float(ray_data[i + 1])
-                        x2 = float(ray_data[i + 2]); y2 = float(ray_data[i + 3])
-                        rays.append([[x1, y1], [x2, y2]])
-                    except (ValueError, IndexError):
+                if p_type == 0:
+                    circles.append((x, y, size))
+                else:
+                    if sides < 3 or size <= 0.0:
                         continue
+                    verts = []
+                    for i in range(sides):
+                        theta = 2.0 * math.pi * i / sides + angle
+                        vx = x + size * math.cos(theta)
+                        vy = y + size * math.sin(theta)
+                        verts.append((vx, vy))
+                    polys.append(verts)
 
-            if particle_positions or rays:
-                frame_data = {
-                    'time': current_time,
-                    'particles': {
-                        'positions': xp.array(particle_positions, dtype=xp.float32),
-                        'types': xp.array(particle_types, dtype=xp.int32),
-                        'sizes': xp.array(particle_sizes, dtype=xp.float32),
-                        'num_sides': xp.array(particle_num_sides, dtype=xp.int32),
-                        'angles': xp.array(particle_angles, dtype=xp.float32)
-                    },
-                    'rays': rays
-                }
-                frames.append(frame_data)
-
-            frame_count += 1
+            frames.append({
+                'time': t,
+                'circles': xp.array(circles, dtype=xp.float32) if circles else xp.zeros((0,3), dtype=xp.float32),
+                'polygons': [xp.array(poly, dtype=xp.float32) for poly in polys],
+            })
+            idx += 1
 
     return frames
 
+
+
 # ------------------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Renderizador de simulación de silo (CPU o GPU CuPy) con intervalos de tiempo")
-    # NUEVO: control CPU/GPU e intervalos
-    parser.add_argument('--cpu', action='store_true', help='Forzar modo CPU (usar numpy). Si no se pasa, intenta CuPy y cae a numpy si no hay GPU.')
-    parser.add_argument('--intervals', type=str, default=None,
-                        help='Lista de intervalos de tiempo "ini:fin, ini2:fin2, ...". Reemplaza a min/max.')
-    parser.add_argument('--intervals-file', type=str, default=None,
-                        help='Archivo de texto con intervalos "ini:fin" uno por línea. Reemplaza a min/max.')
-    # Rango simple
-    parser.add_argument('--min-time', type=float, default=-1.0,
-                       help='Tiempo inicial a renderizar (s)')
-    parser.add_argument('--max-time', type=float, default=float('inf'),
-                       help='Tiempo final a renderizar (s)')
-    parser.add_argument('--frame-step', type=int, default=1,
-                       help='Saltar frames (ej. 2 para cada 2 frames)')
-    parser.add_argument('--target-video-duration', type=float, default=None,
-                       help='Duración objetivo del video en s (calcula frame-step)')
-    parser.add_argument('--data-path', required=True,
-                       help='Archivo CSV con datos de simulación')
-    parser.add_argument('--output-dir', default='output_frames',
-                       help='Directorio para guardar frames PNG')
-    parser.add_argument('--video-output', default='simulation.mp4',
-                       help='Nombre del archivo de video de salida')
-    parser.add_argument('--no-video', action='store_true',
-                       help='No generar el video, solo los frames')
-    parser.add_argument('--fps', type=int, default=60,
-                       help='FPS del video')
-    parser.add_argument('--base-radius', type=float, default=0.5,
-                       help='Radio base partículas grandes (m)')
-    parser.add_argument('--size-ratio', type=float, default=0.4,
-                       help='Radio pequeño/Radio grande (0-1)')
-    parser.add_argument('--chi', type=float, default=0.2,
-                       help='Fracción de partículas pequeñas (0-1)')
-    parser.add_argument('--num-large-circles', type=int, default=0,
-                       help='Número de partículas circulares grandes')
-    parser.add_argument('--num-small-circles', type=int, default=0,
-                       help='Número de partículas circulares pequeñas')
-    parser.add_argument('--num-polygon-particles', type=int, default=0,
-                       help='Número de partículas poligonales')
-    parser.add_argument('--total-particles', type=int, default=1000,
-                       help='Total de partículas si no hay conteos explícitos')
-    parser.add_argument('--silo-height', type=float, default=11.70,
-                       help='Altura del silo (m)')
-    parser.add_argument('--silo-width', type=float, default=2.6,
-                       help='Ancho del silo (m)')
-    parser.add_argument('--outlet-width', type=float, default=0.3056,
-                       help='Ancho total del outlet (m)')
-    parser.add_argument('--width', type=int, default=1920,
-                       help='Ancho px')
-    parser.add_argument('--height', type=int, default=2560,
-                       help='Alto px')
-    parser.add_argument('--hd', action='store_true', help='1280x1024')
-    parser.add_argument('--full-hd', action='store_true', help='1920x1536')
-    parser.add_argument('--4k', action='store_true', help='3840x3072')
-    parser.add_argument('--8k', action='store_true', help='7680x6144')
-    parser.add_argument('--high-quality', action='store_true',
-                       help='Antialiasing mejorado, más segmentos')
-    parser.add_argument('--debug', action='store_true', help='Modo depuración')
+    parser = argparse.ArgumentParser(description="Renderizador de silo: círculos (cx,cy,r) y polígonos por vértices")
+    parser.add_argument('--cpu', action='store_true', help='Forzar NumPy.')
+    parser.add_argument('--intervals', type=str, default=None, help='Intervalos "ini:fin, ..."')
+    parser.add_argument('--intervals-file', type=str, default=None, help='Archivo con intervalos uno por línea')
+    parser.add_argument('--min-time', type=float, default=-1.0)
+    parser.add_argument('--max-time', type=float, default=float('inf'))
+    parser.add_argument('--frame-step', type=int, default=1)
+    parser.add_argument('--target-video-duration', type=float, default=None)
+
+    parser.add_argument('--data-path', required=True)
+    parser.add_argument('--output-dir', default='output_frames')
+    parser.add_argument('--video-output', default='simulation.mp4')
+    parser.add_argument('--no-video', action='store_true')
+    parser.add_argument('--fps', type=int, default=60)
+
+    parser.add_argument('--base-radius', type=float, default=0.5)
+    parser.add_argument('--size-ratio', type=float, default=0.4)
+    parser.add_argument('--silo-height', type=float, default=11.70)
+    parser.add_argument('--silo-width', type=float, default=2.6)
+    parser.add_argument('--outlet-width', type=float, default=0.3056)
+
+    parser.add_argument('--width', type=int, default=1920)
+    parser.add_argument('--height', type=int, default=2560)
+    parser.add_argument('--hd', action='store_true')
+    parser.add_argument('--full-hd', action='store_true')
+    parser.add_argument('--4k', action='store_true')
+    parser.add_argument('--8k', action='store_true')
+    parser.add_argument('--high-quality', action='store_true')
+    parser.add_argument('--debug', action='store_true')
+
+    parser.add_argument('--poly-sides', type=int, default=None, help='N lados por polígono (requerido).')
+    parser.add_argument('--num-circles', type=int, default=None,
+                    help='Cantidad de círculos por frame (si los marcadores están solo en el header).')
+    parser.add_argument('--num-polygons', type=int, default=None,
+                    help='Cantidad de polígonos por frame (si los marcadores están solo en el header).')
+
 
     args = parser.parse_args()
 
@@ -631,25 +620,15 @@ def main():
 
     if args.hd:
         args.width, args.height = 1280, 1024
-        print("Resolución: 1280x1024")
     elif args.full_hd:
         args.width, args.height = 1920, 1536
-        print("Resolución: 1920x1536")
     elif getattr(args, '4k', False):
         args.width, args.height = 3840, 3072
-        print("Resolución: 3840x3072 (4K)")
     elif getattr(args, '8k', False):
         args.width, args.height = 7680, 6144
-        print("Resolución: 7680x6144 (8K)")
-    else:
-        print(f"Resolución personalizada: {args.width}x{args.height}")
+    print(f"Resolución: {args.width}x{args.height}")
+    print("Alta calidad" if args.high_quality else "Calidad estándar")
 
-    if args.high_quality:
-        print("Alta calidad activada")
-    else:
-        print("Calidad estándar")
-
-    # Preparar intervalos
     intervals = []
     if args.intervals_file:
         with open(args.intervals_file, 'r') as finv:
@@ -659,16 +638,14 @@ def main():
         intervals = parse_intervals(args.intervals)
 
     if intervals:
-        print(f"Usando {len(intervals)} intervalos de tiempo:")
-        for a, b in intervals:
-            print(f"  - [{a}, {b}] s")
+        print(f"Intervalos: {intervals}")
     else:
-        print(f"Rango simple: {args.min_time} s -> {args.max_time} s")
+        print(f"Rango: {args.min_time} -> {args.max_time} s")
 
     try:
         os.makedirs(args.output_dir, exist_ok=True)
 
-        # Cálculo automático de frame-step si se pidió y NO hay intervalos
+        # Cálculo rápido de frame-step si se pidió
         if args.target_video_duration is not None and not intervals:
             total_frames = 0
             sim_start_time = None
@@ -707,39 +684,27 @@ def main():
                 print(f"  - frame-step calculado: {calculated_frame_step}")
                 args.frame_step = calculated_frame_step
             else:
-                print("No se pudo calcular frame_step automáticamente (usando el provisto).")
+                print("No se pudo calcular frame_step automáticamente (se usa el provisto).")
 
-        # Mezcla de partículas
-        if args.num_large_circles > 0 or args.num_small_circles > 0 or args.num_polygon_particles > 0:
-            total_particles = args.num_large_circles + args.num_small_circles + args.num_polygon_particles
-            print(f"Conteos explícitos: Grandes={args.num_large_circles}, Pequeñas={args.num_small_circles}, Polígonos={args.num_polygon_particles}")
-        else:
-            args.num_large_circles = int((1.0 - args.chi) * args.total_particles)
-            args.num_small_circles = int(args.chi * args.total_particles)
-            total_particles = args.num_large_circles + args.num_small_circles
-            print(f"Mezcla por chi: Grandes={args.num_large_circles}, Pequeñas={args.num_small_circles}")
-
-        # Carga de frames con filtros / intervalos
         frames = load_simulation_data(
             file_path=args.data_path,
             xp=xp,
             min_time=args.min_time,
             max_time=args.max_time,
             frame_step=args.frame_step,
-            total_particles=total_particles,
-            intervals=intervals
+            intervals=intervals,
+            poly_num_sides=args.poly_sides,
+            num_circles=args.num_circles,
+            num_polygons=args.num_polygons
         )
+
         print(f"Frames cargados: {len(frames)}")
 
-        # Render
         renderer = SiloRenderer(
             width=args.width,
             height=args.height,
             base_radius=args.base_radius,
             size_ratio=args.size_ratio,
-            num_large_circles=args.num_large_circles,
-            num_small_circles=args.num_small_circles,
-            num_polygon_particles=args.num_polygon_particles,
             silo_height=args.silo_height,
             silo_width=args.silo_width,
             outlet_width=args.outlet_width,
@@ -749,14 +714,10 @@ def main():
 
         print("Renderizando frames...")
         for i, frame in enumerate(tqdm(frames, disable=not args.debug)):
-            if frame['particles']['positions'].size > 0 or frame['rays']:
-                image = renderer.render_frame(frame)
-                if image is not None:
-                    image.save(f"{args.output_dir}/frame_{i:05d}.png")
-            elif args.debug:
-                print(f"Frame {i}: Sin partículas visibles")
+            image = renderer.render_frame(frame)
+            if image is not None:
+                image.save(f"{args.output_dir}/frame_{i:05d}.png")
 
-        # Limpieza de archivos vacíos (por si acaso)
         subprocess.run(['find', args.output_dir, '-type', 'f', '-size', '0c', '-delete'], check=False)
 
         if not args.no_video and len(frames) > 0:
@@ -772,7 +733,6 @@ def main():
             print("No hay frames para generar video")
         else:
             print("Se omitió la generación de video por --no-video.")
-
     except Exception as e:
         print(f"Error: {str(e)}")
         traceback.print_exc()

@@ -3,7 +3,6 @@
 #include "DataHandling.h"
 #include "Constants.h"
 #include "Initialization.h"
-
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -15,33 +14,34 @@
 #include <algorithm>
 #include <iomanip>
 #include <random>
+#include <cstring>
+#include <set>
 
-// ============================================================================
-// Helpers locales: construir vértices de polígonos regulares en coordenadas mundo
-// ============================================================================
+// =========================================================
+// IMPLEMENTACIÓN DE FUNCIÓN AUXILIAR (Callback para raycast)
+// =========================================================
 
-static inline void buildRegularPolygonWorldVertices(
-    const b2Vec2& center, float circumRadius, int numSides, float angle,
-    std::vector<b2Vec2>& outVerts)
-{
-    outVerts.clear();
-    numSides = std::max(3, numSides);
-    outVerts.reserve(numSides);
-    const float twoPi = 2.0f * float(M_PI);
-    for (int i = 0; i < numSides; ++i) {
-        float theta = angle + twoPi * float(i) / float(numSides);
-        float x = center.x + circumRadius * std::cos(theta);
-        float y = center.y + circumRadius * std::sin(theta);
-        outVerts.push_back({x, y});
+float RaycastCallback(b2ShapeId shapeId, b2Vec2 point, b2Vec2 normal, float fraction, void* context) {
+    b2BodyId bodyId = b2Shape_GetBody(shapeId);
+
+    if (b2Body_GetType(bodyId) == b2_dynamicBody) {
+        RaycastUserData* data = static_cast<RaycastUserData*>(context);
+        data->hitBodies.insert(bodyId);
+
+        if (!data->raySegments.empty()) {
+
+        }
     }
+    return fraction;
 }
 
-// ============================================================================
-// Inicialización / finalización de archivos
-// ============================================================================
+// =========================================================
+// IMPLEMENTACIÓN DE FUNCIONES DE INICIALIZACIÓN/FINALIZACIÓN DE DATOS
+// =========================================================
 
 void initializeDataFiles() {
 
+    // Crear directorio de resultados
     std::ostringstream dirNameStream;
     dirNameStream << "sim_" << CURRENT_SIMULATION
                   << "part_" << TOTAL_PARTICLES
@@ -55,20 +55,27 @@ void initializeDataFiles() {
                   << "_outlet" << std::setprecision(2) << OUTLET_WIDTH
                   << "_maxAva" << MAX_AVALANCHES;
 
-    const std::string outputDir = "./simulations/" + dirNameStream.str() + "/";
+    std::string outputDir = "./simulations/" + dirNameStream.str() + "/";
     std::filesystem::create_directories(outputDir);
 
+    // Abrir archivos de salida
     if (SAVE_SIMULATION_DATA) {
         simulationDataFile.open(outputDir + "simulation_data.csv");
-        // Nuevo encabezado (sin rayos)
-        simulationDataFile
-            << "Time,circles_begin,circles_end,polygons_begin,polygons_end\n";
+        simulationDataFile << "Time";
+        for (int i = 0; i < TOTAL_PARTICLES; ++i) {
+            simulationDataFile << ",p" << i << "_x,p" << i << "_y,p" << i << "_type,p" << i << "_size,p" << i << "_sides,p" << i << "_angle";
+        }
+        simulationDataFile << ",rays_begin";
+        for (int i = 0; i < 120; ++i) {
+            simulationDataFile << ",ray" << i << "_x1,ray" << i << "_y1,ray" << i << "_x2,ray" << i << "_y2";
+        }
+        simulationDataFile << ",rays_end\n";
     }
-
     avalancheDataFile.open(outputDir + "avalanche_data.csv");
     flowDataFile.open(outputDir + "flow_data.csv");
-    flowDataFile << "Time,MassTotal,MassFlowRate,NoPTotal,NoPFlowRate,"
-                    "MassOriginalTotal,MassOriginalFlowRate,NoPOriginalTotal,NoPOriginalFlowRate\n";
+
+    // Encabezado para flow_data.csv
+    flowDataFile << "Time,MassTotal,MassFlowRate,NoPTotal,NoPFlowRate,MassOriginalTotal,MassOriginalFlowRate,NoPOriginalTotal,NoPOriginalFlowRate\n";
 }
 
 void finalizeDataFiles(bool simulationInterrupted) {
@@ -80,7 +87,7 @@ void finalizeDataFiles(bool simulationInterrupted) {
         totalBlockageTime += (simulationTime - blockageStartTime);
     }
 
-    const float totalSimulationTime = simulationTime;
+    float totalSimulationTime = simulationTime;
 
     if (accumulatedMass > 0) {
         recordFlowData(simulationTime, 0, 0, 0, 0);
@@ -94,27 +101,27 @@ void finalizeDataFiles(bool simulationInterrupted) {
     avalancheDataFile << "# Simulación interrumpida: " << (simulationInterrupted ? "Sí" : "No") << "\n";
     avalancheDataFile << "# Máximo de avalanchas alcanzado: " << (avalancheCount >= MAX_AVALANCHES ? "Sí" : "No") << "\n";
 
+
     if (SAVE_SIMULATION_DATA) simulationDataFile.close();
     avalancheDataFile.close();
     flowDataFile.close();
 
     std::cout << "\n===== SIMULACIÓN COMPLETADA =====\n";
     std::cout << "Avalanchas registradas: " << avalancheCount << "/" << MAX_AVALANCHES << "\n";
-    std::cout << "Tiempo total: " << totalSimulationTime << "s | Flujo: "
-              << totalFlowingTime << "s | Atasco: " << totalBlockageTime << "s\n";
+    std::cout << "Tiempo total: " << totalSimulationTime << "s | Flujo: " << totalFlowingTime << "s | Atasco: " << totalBlockageTime << "s\n";
     std::cout << "Partículas salientes: " << totalExitedParticles << "\n";
 }
 
-// ============================================================================
-// Física / Flujo (sin cambios de lógica)
-// ============================================================================
+// =========================================================
+// IMPLEMENTACIÓN DE FUNCIONES DE FÍSICA Y FLUJO
+// =========================================================
 
 void applyRandomImpulses() {
     if (simulationTime - lastShockTime >= SHOCK_INTERVAL) {
         for (const auto& particle : particles) {
             float magnitude = impulseMagnitudeDistribution(randomEngine) * 0.5f;
             float angle = angleDistribution(randomEngine);
-            b2Vec2 impulse = { magnitude * std::cos(angle), magnitude * std::sin(angle) };
+            b2Vec2 impulse = { magnitude * cos(angle), magnitude * sin(angle) };
             b2Body_ApplyLinearImpulseToCenter(particle.bodyId, impulse, true);
         }
         lastShockTime = simulationTime;
@@ -162,6 +169,7 @@ void manageParticles(b2WorldId worldId, float currentTime, float siloHeight,
             b2Body_SetAngularVelocity(particleId, 0.0f);
             b2Body_SetAwake(particleId, true);
         }
+
         else if (pos.y < EXIT_BELOW_Y || pos.x < -SILO_WIDTH || pos.x > SILO_WIDTH) {
             float randomX = REINJECT_MIN_X + (REINJECT_MAX_X - REINJECT_MIN_X) * static_cast<float>(rand()) / RAND_MAX;
             float randomY = REINJECT_MIN_Y + (REINJECT_MAX_Y - REINJECT_MIN_Y) * static_cast<float>(rand()) / RAND_MAX;
@@ -209,77 +217,89 @@ void recordFlowData(float currentTime, int exitedTotalCount, float exitedTotalMa
     }
 }
 
-// ============================================================================
-// Volcado de frame: círculos (cx,cy,r) y polígonos (lista de vértices)
-// Clasificación por índice para no depender de campos en ParticleInfo.
-// ============================================================================
+void detectAndReinjectArchViaRaycast(b2WorldId worldId, float siloHeight) {
 
-void writeSimulationFrameLine(float currentTime)
-{
-    if (!SAVE_SIMULATION_DATA) return;
+    const float REINJECT_HEIGHT = siloHeight * REINJECT_HEIGHT_RATIO;
+    float baseRange = OUTLET_WIDTH * 2.0f;
+    float progressiveMultiplier = 1.0f + (blockageRetryCount * 0.5f);
+    float maxRange = std::min(siloHeight * 0.05f, siloHeight * 0.5f);
 
-    // Particiones por índice:
-    const int idxCirclesLargeBegin = 0;
-    const int idxCirclesLargeEnd   = NUM_LARGE_CIRCLES; // exclusivo
-    const int idxCirclesSmallEnd   = NUM_LARGE_CIRCLES + NUM_SMALL_CIRCLES; // exclusivo
-    const int idxPolygonsBegin     = idxCirclesSmallEnd;
-    const int idxPolygonsEnd       = idxPolygonsBegin + NUM_POLYGON_PARTICLES; // exclusivo
+    const int numRays = 120;
+    const float maxAngle = M_PI / 2.0f;
+    const b2Vec2 origin = {0.0f, -0.1f};
 
-    // 1) tiempo
-    simulationDataFile << std::fixed << std::setprecision(6) << currentTime << ",";
+    const int maxInternalRetries = 3;
+    const float internalGrowth = 1.5f;
 
-    // 2) CÍRCULOS
-    simulationDataFile << "circles_begin";
-    for (int i = idxCirclesLargeBegin; i < idxCirclesLargeEnd; ++i) {
-        b2BodyId bid = particleBodyIds[i];
-        b2Vec2   pos = b2Body_GetPosition(bid);
-        const float r = BASE_RADIUS;
-        simulationDataFile << "," << pos.x << "," << pos.y << "," << r;
-    }
-    for (int i = idxCirclesLargeEnd; i < idxCirclesSmallEnd; ++i) {
-        b2BodyId bid = particleBodyIds[i];
-        b2Vec2   pos = b2Body_GetPosition(bid);
-        const float r = BASE_RADIUS * SIZE_RATIO;
-        simulationDataFile << "," << pos.x << "," << pos.y << "," << r;
-    }
-    simulationDataFile << ",circles_end,";
+    RaycastUserData raycastData;
+    bool anyHit = false;
+    float localMultiplier = 1.0f;
 
-    // 3) POLÍGONOS
-    simulationDataFile << "polygons_begin";
-    std::vector<b2Vec2> verts;
-    for (int i = idxPolygonsBegin; i < idxPolygonsEnd; ++i) {
-        b2BodyId bid = particleBodyIds[i];
-        b2Vec2   pos = b2Body_GetPosition(bid);
-        const float ang = b2Rot_GetAngle(b2Body_GetRotation(bid));
+    for (int internalAttempt = 0; internalAttempt <= maxInternalRetries && !anyHit; ++internalAttempt) {
+        float DETECTION_RANGE = std::min(baseRange * progressiveMultiplier * localMultiplier, maxRange);
 
-        // Si tus polígonos usan otro tamaño, cámbialo aquí:
-        const float circumR = BASE_RADIUS;   // tamaño de polígono
-        const int   nSides  = NUM_SIDES;     // lados global
+        raycastData.raySegments.clear();
+        raycastData.hitBodies.clear();
 
-        buildRegularPolygonWorldVertices(pos, circumR, nSides, ang, verts);
-        for (const auto& v : verts) {
-            simulationDataFile << "," << v.x << "," << v.y;
+        for (int i = 0; i < numRays; ++i) {
+            float angle = -maxAngle + (2.0f * maxAngle * i) / (numRays - 1);
+            b2Vec2 dir = { std::cos(angle), std::sin(angle) };
+            b2Vec2 end = { origin.x + dir.x * DETECTION_RANGE, origin.y + dir.y * DETECTION_RANGE };
+
+            raycastData.raySegments.push_back({ origin, end });
+            b2World_CastRay(worldId, origin, end, b2DefaultQueryFilter(), RaycastCallback, &raycastData);
+        }
+
+        if (!raycastData.hitBodies.empty()) {
+            anyHit = true;
+            break;
+        } else {
+            localMultiplier *= internalGrowth;
         }
     }
-    simulationDataFile << ",polygons_end\n";
+
+    if (!anyHit) {
+        std::cout << "detectAndReinjectArchViaRaycast: no se detectaron partículas tras reintentos internos.\n";
+        return;
+    }
+
+    const int maxReinjectPerStep = 10;
+    int reinjected = 0;
+
+    for (b2BodyId body : raycastData.hitBodies) {
+        if (reinjected >= maxReinjectPerStep) break;
+
+        b2Vec2 pos = b2Body_GetPosition(body);
+        float jitter = ((float)rand() / RAND_MAX - 0.5f) * 0.05f;
+        b2Vec2 newPos = { pos.x + jitter, REINJECT_HEIGHT + ((float)rand() / RAND_MAX - 0.5f) * REINJECT_HEIGHT_VARIATION };
+
+        b2Body_SetTransform(body, newPos, b2Body_GetRotation(body));
+        b2Body_SetLinearVelocity(body, {0.0f, 0.0f});
+        b2Body_SetAngularVelocity(body, 0.0f);
+        b2Body_SetAwake(body, true);
+
+        ++reinjected;
+    }
+
+    std::cout << "Reinyectadas " << reinjected << " partículas del arco "
+              << "(Intento global #" << blockageRetryCount << ", Rango usado: "
+              << std::fixed << std::setprecision(2)
+              << std::min(baseRange * progressiveMultiplier * localMultiplier, maxRange) << " m)\n";
 }
 
-// ============================================================================
-// Detección de avalanchas/atascos (sin cambios de lógica)
-// ============================================================================
-
 void finalizeAvalanche() {
-    const float currentAvalancheDuration = simulationTime - avalancheStartTime;
+
+    float currentAvalancheDuration = simulationTime - avalancheStartTime;
 
     if (currentAvalancheDuration >= MIN_AVALANCHE_DURATION) {
         totalFlowingTime += currentAvalancheDuration;
-        const int particlesInThisAvalanche = totalExitedParticles - avalancheStartParticleCount;
+        int particlesInThisAvalanche = totalExitedParticles - avalancheStartParticleCount;
 
         avalancheDataFile << "Avalancha " << (avalancheCount + 1) << ","
-                          << avalancheStartTime << ","
-                          << simulationTime << ","
-                          << currentAvalancheDuration << ","
-                          << particlesInThisAvalanche << "\n";
+                        << avalancheStartTime << ","
+                        << simulationTime << ","
+                        << currentAvalancheDuration << ","
+                        << particlesInThisAvalanche << "\n";
 
         avalancheCount++;
         std::cout << "Avalancha " << avalancheCount << " registrada: "
@@ -296,8 +316,7 @@ void startAvalanche() {
     avalancheStartTime = simulationTime;
     avalancheStartParticleCount = totalExitedParticles;
     particlesExitedInCurrentAvalanche.clear();
-    std::cout << "Inicio de avalancha " << (avalancheCount + 1)
-              << " a t=" << simulationTime << "s\n";
+    std::cout << "Inicio de avalancha " << (avalancheCount + 1) << " a t=" << simulationTime << "s\n";
 }
 
 void startBlockage() {
@@ -311,28 +330,29 @@ void startBlockage() {
 void checkFlowStatus(b2WorldId worldId, float timeSinceLastExit) {
 
     if (!inAvalanche && !inBlockage) {
+        // Estado inicial: esperando primer flujo
         if (totalExitedParticles > lastTotalExitedCount) {
             startAvalanche();
         }
     }
     else if (inAvalanche) {
+        // Durante avalancha: verificar si se atasca
         if (timeSinceLastExit > BLOCKAGE_THRESHOLD) {
             startBlockage();
         }
     }
     else if (inBlockage) {
+        // Durante atasco: verificar si fluye o si necesita raycast
         if (totalExitedParticles > lastTotalExitedCount) {
-            const float blockageDuration = simulationTime - blockageStartTime;
+            // Flujo reanudado naturalmente
+            float blockageDuration = simulationTime - blockageStartTime;
             totalBlockageTime += blockageDuration;
             inBlockage = false;
             startAvalanche();
-            std::cout << "Flujo reanudado después de atasco de "
-                      << blockageDuration << "s\n";
+            std::cout << "Flujo reanudado después de atasco de " << blockageDuration << "s\n";
         }
         else if (simulationTime - blockageStartTime > 2.0f) {
             if (simulationTime - lastRaycastTime >= RAYCAST_COOLDOWN) {
-                // Si mantenés tu rutina de raycast en otro módulo, llamala acá.
-                // Esta unidad no exporta rayos al CSV.
                 detectAndReinjectArchViaRaycast(worldId, silo_height);
                 lastRaycastTime = simulationTime;
                 blockageRetryCount++;
@@ -341,26 +361,4 @@ void checkFlowStatus(b2WorldId worldId, float timeSinceLastExit) {
     }
 
     lastTotalExitedCount = totalExitedParticles;
-}
-
-// ====== SHIMS DE COMPATIBILIDAD PARA ENLACE (no cambian la lógica) ======
-
-// 1) FlowControl.cpp define detectAndReinjectArchViaRaycast(b2WorldId)
-//    pero aquí se llama a una versión con (worldId, siloHeight).
-//    Creamos un "forwarder" a la versión de un solo parámetro.
-extern void detectAndReinjectArchViaRaycast(b2WorldId worldId); // la real, en FlowControl.cpp
-void detectAndReinjectArchViaRaycast(b2WorldId worldId, float /*siloHeight*/) {
-    detectAndReinjectArchViaRaycast(worldId);
-}
-
-// 2) FlowControl.cpp también referencia RaycastCallback(...).
-//    Definimos una versión mínima (no-op) para satisfacer el enlazado.
-//    Si tu lógica de destrabe necesita recolectar hits, FlowControl la puede
-//    sobreescribir o podemos ampliarla luego. Por ahora, compila y enlaza.
-float RaycastCallback(b2ShapeId /*shapeId*/,
-                      b2Vec2 /*point*/,
-                      b2Vec2 /*normal*/,
-                      float fraction,
-                      void* /*context*/) {
-    return fraction; // no-op: no altera la fracción
 }
